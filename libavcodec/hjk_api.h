@@ -26,7 +26,7 @@
 #define HJKENCAPI_MINOR_VERSION 1
 
 typedef enum {
-    HJK_ENC_DEVICE_TYPE_CUDA,
+    HJK_ENC_DEVICE_TYPE_HJK,
     HJK_ENC_DEVICE_TYPE_DIRECTX,
 }HJK_ENC_DEVICE_TYPE;
 
@@ -35,7 +35,7 @@ typedef enum {
     HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX,
 } HJK_ENC_INPUT_RESOURCE_TYPE;
 
-typedef void * HJKstream;
+typedef void * HJstream;
 
 typedef enum {
     HJK_ENC_PARAMS_RC_CONSTQP,
@@ -444,8 +444,8 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
                                        HJK_ENC_PRESET_CONFIG *preset_config);
 
     int (*hjkEncInitializeEncoder)(void *handle, HJK_ENC_INITIALIZE_PARAMS *init_encode_params);
-    int (*hjkEncSetIOCudaStreams)(void *handle, HJKstream *cu_stream,
-                                  HJKstream *cu_stream1);
+    int (*hjkEncSetIOCudaStreams)(void *handle, HJstream *cu_stream,
+                                  HJstream *cu_stream1);
     int (*hjkEncCreateInputBuffer)(void *handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf);
     int (*hjkEncCreateBitstreamBuffer)(void *handle, HJK_ENC_CREATE_BITSTREAM_BUFFER *allocOut);
     int (*hjkEncDestroyInputBuffer)(void *handle,
@@ -469,25 +469,56 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
 
 }HJK_ENCODE_API_FUNCTION_LIST;
 
-typedef void *HJKcontext;
+typedef void *HJcontext;
+/*
 typedef struct _HJcontext {
 
 }HJcontext;
+*/
 
 typedef void * HJdevice;
+typedef void * HJdeviceptr;
+
+typedef enum {
+    HJ_CTX_SCHED_BLOCKING_SYNC,
+};
+
+typedef void *HJdeviceptr;
+typedef enum {
+    HJ_MEMORYTYPE_HOST,
+    HJ_MEMORYTYPE_DEVICE,
+}HJ_MEMORYTYPE;
+
+typedef struct _HJK_MEMCPY2D {
+            int srcMemoryType;
+            int dstMemoryType;
+            HJdeviceptr srcDevice;
+            uint8_t *dstHost;
+            uint8_t *srcHost;
+            HJdeviceptr dstDevice;
+            int srcPitch;
+            int dstPitch;
+            int WidthInBytes;
+            int Height;
+} HJK_MEMCPY2D;
 
 typedef struct _HjkFunctions {
-    int (*hjkCtxPushCurrent)(HJKcontext hjk_context);
-    int (*hjkCtxPopCurrent)(HJcontext *dummy);
-    int (*hjkDeviceGet)(HJdevice * cu_device, int idx);
-    int (*hjkDeviceGetName)(char *name, int name_size, HJdevice cu_device);
-    int (*hjkDeviceComputeCapability)(int *major, int *minor,
+    int (*hjCtxPushCurrent)(HJcontext hj_context);
+    int (*hjCtxPopCurrent)(HJcontext *dummy);
+    int (*hjDeviceGet)(HJdevice * cu_device, int idx);
+    int (*hjDeviceGetName)(char *name, int name_size, HJdevice cu_device);
+    int (*hjDeviceComputeCapability)(int *major, int *minor,
                                       HJdevice cu_device);
-    int (*hjkCtxCreate)(HJKcontext * hjk_context_internal, int size,
+    int (*hjCtxCreate)(HJcontext * hj_context_internal, int size,
                         HJdevice cu_device);
-    int (*hjkCtxDestroy)(HJKcontext * hjk_context_internal);
-    int (*hjkInit)(int size);
-    int (*hjkDeviceGetCount)(int *nb_devices);
+    int (*hjCtxDestroy)(HJcontext * hj_context_internal);
+    int (*hjInit)(int size);
+    int (*hjDeviceGetCount)(int *nb_devices);
+    int (*hjMemFree)(HJdeviceptr data);
+    int (*hjMemAlloc)(HJdeviceptr *data, int size);
+    int (*hjMemcpy2DAsync)(HJK_MEMCPY2D *cpy, HJstream stream);
+    int (*hjStreamSynchronize)(HJstream stream);
+    
     hjk_check_GetErrorName_cb *hjkGetErrorName;
 } HjkFunctions;
 

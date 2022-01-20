@@ -174,7 +174,7 @@ static const AVClass hjkenc_class = {
 
 AVCodec ff_hjkenc_encoder = {
     .name           = "hjkenc",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC H.264 encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = hjkenc_old_init,
@@ -203,7 +203,7 @@ static const AVClass hjkenc_mjpeg_class = {
 
 AVCodec ff_hjkenc_mjpeg_encoder = {
     .name           = "hjkenc_mjpeg",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC H.264 encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = hjkenc_old_init,
@@ -232,7 +232,7 @@ static const AVClass mjpeg_hjkenc_class = {
 
 AVCodec ff_mjpeg_hjkenc_encoder = {
     .name           = "mjpeg_hjkenc",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC H.264 encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = ff_hjkenc_encode_init,

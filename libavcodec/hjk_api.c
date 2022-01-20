@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static int hjk_CtxPushCurrent(HJKcontext hjk_context)
+static int hjk_CtxPushCurrent(HJcontext hjk_context)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -39,7 +39,7 @@ static int hjk_DeviceComputeCapability(int *major, int *minor,
     return 0;
 }
 
-static int hjk_CtxCreate(HJKcontext * hjk_context_internal, int size,
+static int hjk_CtxCreate(HJcontext * hjk_context_internal, int size,
 					HJdevice cu_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
@@ -47,7 +47,7 @@ static int hjk_CtxCreate(HJKcontext * hjk_context_internal, int size,
     return 0;
 }
 
-static int hjk_CtxDestroy(HJKcontext * hjk_context_internal)
+static int hjk_CtxDestroy(HJcontext * hjk_context_internal)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -68,6 +68,34 @@ static int hjk_DeviceGetCount(int *nb_devices)
     return 0;
 }
 
+static int hjk_MemFree(HJdeviceptr data)
+{
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    return 0;
+}
+
+static int hjk_MemAlloc(HJdeviceptr *data, int size)
+{
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    return 0;
+}
+
+static int hjk_Memcpy2DAsync(HJK_MEMCPY2D *cpy, HJstream stream)
+{
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    return 0;
+}
+
+static int hjk_StreamSynchronize(HJstream stream)
+{
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    return 0;
+}
+
 static int hjk_check_GetErrorName(HJKresult error, const char** pstr)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
@@ -76,15 +104,19 @@ static int hjk_check_GetErrorName(HJKresult error, const char** pstr)
 }
 
 static HjkFunctions hjk_functions = {
-    .hjkCtxPushCurrent = hjk_CtxPushCurrent,
-    .hjkCtxPopCurrent = hjk_CtxPopCurrent,
-    .hjkDeviceGet = hjk_DeviceGet,
-    .hjkDeviceGetName = hjk_DeviceGetName,
-    .hjkDeviceComputeCapability = hjk_DeviceComputeCapability,
-    .hjkCtxCreate = hjk_CtxCreate,
-    .hjkCtxDestroy = hjk_CtxDestroy,
-    .hjkInit = hjk_Init,
-    .hjkDeviceGetCount = hjk_DeviceGetCount,
+    .hjCtxPushCurrent = hjk_CtxPushCurrent,
+    .hjCtxPopCurrent = hjk_CtxPopCurrent,
+    .hjDeviceGet = hjk_DeviceGet,
+    .hjDeviceGetName = hjk_DeviceGetName,
+    .hjDeviceComputeCapability = hjk_DeviceComputeCapability,
+    .hjCtxCreate = hjk_CtxCreate,
+    .hjCtxDestroy = hjk_CtxDestroy,
+    .hjInit = hjk_Init,
+    .hjDeviceGetCount = hjk_DeviceGetCount,
+    .hjMemFree = hjk_MemFree,
+    .hjMemAlloc = hjk_MemAlloc,
+    .hjMemcpy2DAsync = hjk_Memcpy2DAsync,
+    .hjStreamSynchronize = hjk_StreamSynchronize,
     .hjkGetErrorName = hjk_check_GetErrorName,
 };
 
@@ -177,8 +209,8 @@ static int hjk_EncInitializeEncoder(void *handle, HJK_ENC_INITIALIZE_PARAMS *ini
     return 0;
 }
 
-static int hjk_EncSetIOCudaStreams(void *handle, HJKstream *cu_stream,
-							  HJKstream *cu_stream1)
+static int hjk_EncSetIOCudaStreams(void *handle, HJstream *cu_stream,
+							  HJstream *cu_stream1)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 

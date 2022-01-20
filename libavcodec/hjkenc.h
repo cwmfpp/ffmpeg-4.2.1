@@ -129,8 +129,8 @@ typedef struct HjkencContext
 
     HJK_ENC_INITIALIZE_PARAMS init_encode_params;
     HJK_ENC_CONFIG encode_config;
-    HJKcontext hjk_context;
-    HJKcontext hjk_context_internal;
+    HJcontext hjk_context;
+    HJcontext hjk_context_internal;
     ID3D11Device *d3d11_device;
 
     int nb_surfaces;

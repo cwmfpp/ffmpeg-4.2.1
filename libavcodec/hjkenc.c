@@ -23,6 +23,8 @@
 
 #include "hjkenc.h"
 
+#define ABCD
+
 #ifdef ABCD
 #include "libavutil/hwcontext_hjk.h"
 #endif
@@ -50,7 +52,7 @@ const enum AVPixelFormat ff_hjkenc_pix_fmts[] = {
     AV_PIX_FMT_YUV444P16, // Truncated to 10bits
     AV_PIX_FMT_0RGB32,
     AV_PIX_FMT_0BGR32,
-    AV_PIX_FMT_CUDA,
+    AV_PIX_FMT_HJK,
 #if CONFIG_D3D11VA
     AV_PIX_FMT_D3D11,
 #endif
@@ -204,7 +206,7 @@ static int hjkenc_push_context(AVCodecContext *avctx)
     if (ctx->d3d11_device)
         return 0;
 
-    return CHECK_CU(dl_fn->hjk_dl->hjkCtxPushCurrent(ctx->hjk_context));
+    return CHECK_CU(dl_fn->hjk_dl->hjCtxPushCurrent(ctx->hjk_context));
 }
 
 static int hjkenc_pop_context(AVCodecContext *avctx)
@@ -216,7 +218,7 @@ static int hjkenc_pop_context(AVCodecContext *avctx)
     if (ctx->d3d11_device)
         return 0;
 
-    return CHECK_CU(dl_fn->hjk_dl->hjkCtxPopCurrent(&dummy));
+    return CHECK_CU(dl_fn->hjk_dl->hjCtxPopCurrent(&dummy));
 }
 
 static av_cold int hjkenc_open_session(AVCodecContext *avctx)
@@ -233,7 +235,7 @@ static av_cold int hjkenc_open_session(AVCodecContext *avctx)
         params.deviceType = HJK_ENC_DEVICE_TYPE_DIRECTX;
     } else {
         params.device     = ctx->hjk_context;
-        params.deviceType = HJK_ENC_DEVICE_TYPE_CUDA;
+        params.deviceType = HJK_ENC_DEVICE_TYPE_HJK;
     }
 
     ret = p_hjkenc->hjkEncOpenEncodeSessionEx(&params, &ctx->hjkencoder);
@@ -415,15 +417,15 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
     if (ctx->device == LIST_DEVICES)
         loglevel = AV_LOG_INFO;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjkDeviceGet(&hj_device, idx));
+    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceGet(&hj_device, idx));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjkDeviceGetName(name, sizeof(name), hj_device));
+    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceGetName(name, sizeof(name), hj_device));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjkDeviceComputeCapability(&major, &minor, hj_device));
+    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceComputeCapability(&major, &minor, hj_device));
     if (ret < 0)
         return ret;
 
@@ -436,7 +438,7 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
     if (ctx->device != idx && ctx->device != ANY_DEVICE)
         return -1;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjkCtxCreate(&ctx->hjk_context_internal, 0, hj_device));
+    ret = CHECK_CU(dl_fn->hjk_dl->hjCtxCreate(&ctx->hjk_context_internal, 0, hj_device));
     if (ret < 0)
         goto fail;
 
@@ -469,7 +471,7 @@ fail3:
         return ret;
 
 fail2:
-    CHECK_CU(dl_fn->hjk_dl->hjkCtxDestroy(ctx->hjk_context_internal));
+    CHECK_CU(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
     ctx->hjk_context_internal = NULL;
 
 fail:
@@ -492,11 +494,12 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
         return AVERROR_BUG;
     }
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11 || avctx->hw_frames_ctx || avctx->hw_device_ctx) {
+
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11 || avctx->hw_frames_ctx || avctx->hw_device_ctx) {
         AVHWFramesContext   *frames_ctx;
         AVHWDeviceContext   *hwdev_ctx;
 #ifdef ABCD
-        AVCUDADeviceContext *hjk_device_hwctx = NULL;
+        AVHJKDeviceContext *hjk_device_hwctx = NULL;
 #endif
 #if CONFIG_D3D11VA
         AVD3D11VADeviceContext *d3d11_device_hwctx = NULL;
@@ -506,7 +509,7 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
         if (avctx->hw_frames_ctx) {
             frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
 #ifdef ABCD
-            if (frames_ctx->format == AV_PIX_FMT_CUDA)
+            if (frames_ctx->format == AV_PIX_FMT_HJK)
                 hjk_device_hwctx = frames_ctx->device_ctx->hwctx;
 #if CONFIG_D3D11VA
             else if (frames_ctx->format == AV_PIX_FMT_D3D11)
@@ -518,7 +521,7 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
         } else if (avctx->hw_device_ctx) {
             hwdev_ctx = (AVHWDeviceContext*)avctx->hw_device_ctx->data;
 #ifdef ABCD
-            if (hwdev_ctx->type == AV_HWDEVICE_TYPE_CUDA)
+            if (hwdev_ctx->type == AV_HWDEVICE_TYPE_HJK)
                 hjk_device_hwctx = hwdev_ctx->hwctx;
 #if CONFIG_D3D11VA
             else if (hwdev_ctx->type == AV_HWDEVICE_TYPE_D3D11VA)
@@ -556,18 +559,18 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
     } else {
         int i, nb_devices = 0;
 
-        if (CHECK_CU(dl_fn->hjk_dl->hjkInit(0)) < 0)
+        if (CHECK_CU(dl_fn->hjk_dl->hjInit(0)) < 0)
             return AVERROR_UNKNOWN;
 
-        if (CHECK_CU(dl_fn->hjk_dl->hjkDeviceGetCount(&nb_devices)) < 0)
+        if (CHECK_CU(dl_fn->hjk_dl->hjDeviceGetCount(&nb_devices)) < 0)
             return AVERROR_UNKNOWN;
 
         if (!nb_devices) {
-            av_log(avctx, AV_LOG_FATAL, "No CUDA capable devices found\n");
+            av_log(avctx, AV_LOG_FATAL, "No HJK capable devices found\n");
                 return AVERROR_EXTERNAL;
         }
 
-        av_log(avctx, AV_LOG_VERBOSE, "%d CUDA capable devices found\n", nb_devices);
+        av_log(avctx, AV_LOG_VERBOSE, "%d HJK capable devices found\n", nb_devices);
 
         dl_fn->hjkenc_device_count = 0;
         for (i = 0; i < nb_devices; ++i) {
@@ -1284,7 +1287,7 @@ static av_cold int hjkenc_alloc_surface(AVCodecContext *avctx, int idx)
     HJK_ENC_CREATE_BITSTREAM_BUFFER allocOut = { 0 };
     allocOut.version = HJK_ENC_CREATE_BITSTREAM_BUFFER_VER;
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         ctx->surfaces[idx].in_ref = av_frame_alloc();
         if (!ctx->surfaces[idx].in_ref)
             return AVERROR(ENOMEM);
@@ -1316,7 +1319,7 @@ static av_cold int hjkenc_alloc_surface(AVCodecContext *avctx, int idx)
     hjk_status = p_hjkenc->hjkEncCreateBitstreamBuffer(ctx->hjkencoder, &allocOut);
     if (hjk_status != HJK_ENC_SUCCESS) {
         int err = hjkenc_print_error(avctx, hjk_status, "CreateBitstreamBuffer failed");
-        if (avctx->pix_fmt != AV_PIX_FMT_CUDA && avctx->pix_fmt != AV_PIX_FMT_D3D11)
+        if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11)
             p_hjkenc->hjkEncDestroyInputBuffer(ctx->hjkencoder, ctx->surfaces[idx].input_surface);
         av_frame_free(&ctx->surfaces[idx].in_ref);
         return err;
@@ -1428,7 +1431,7 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
     av_fifo_freep(&ctx->output_surface_queue);
     av_fifo_freep(&ctx->unused_surface_queue);
 
-    if (ctx->surfaces && (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11)) {
+    if (ctx->surfaces && (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11)) {
         for (i = 0; i < ctx->nb_registered_frames; i++) {
             if (ctx->registered_frames[i].mapped)
                 p_hjkenc->hjkEncUnmapInputResource(ctx->hjkencoder, ctx->registered_frames[i].in_map.mappedResource);
@@ -1440,7 +1443,7 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
 
     if (ctx->surfaces) {
         for (i = 0; i < ctx->nb_surfaces; ++i) {
-            if (avctx->pix_fmt != AV_PIX_FMT_CUDA && avctx->pix_fmt != AV_PIX_FMT_D3D11)
+            if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11)
                 p_hjkenc->hjkEncDestroyInputBuffer(ctx->hjkencoder, ctx->surfaces[i].input_surface);
             av_frame_free(&ctx->surfaces[i].in_ref);
             p_hjkenc->hjkEncDestroyBitstreamBuffer(ctx->hjkencoder, ctx->surfaces[i].output_surface);
@@ -1459,7 +1462,7 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
     ctx->hjkencoder = NULL;
 
     if (ctx->hjk_context_internal)
-        CHECK_CU(dl_fn->hjk_dl->hjkCtxDestroy(ctx->hjk_context_internal));
+        CHECK_CU(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
     ctx->hjk_context = ctx->hjk_context_internal = NULL;
 
 #if CONFIG_D3D11VA
@@ -1484,7 +1487,7 @@ av_cold int ff_hjkenc_encode_init(AVCodecContext *avctx)
     HjkencContext *ctx = avctx->priv_data;
     int ret;
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         AVHWFramesContext *frames_ctx;
         if (!avctx->hw_frames_ctx) {
             av_log(avctx, AV_LOG_ERROR,
@@ -1594,7 +1597,7 @@ static int hjkenc_find_free_reg_resource(AVCodecContext *avctx)
         return ctx->nb_registered_frames++;
     }
 
-    av_log(avctx, AV_LOG_ERROR, "Too many registered CUDA frames\n");
+    av_log(avctx, AV_LOG_ERROR, "Too many registered HJK frames\n");
     return AVERROR(ENOMEM);
 }
 
@@ -1609,7 +1612,7 @@ static int hjkenc_register_frame(AVCodecContext *avctx, const AVFrame *frame)
     int i, idx, ret;
 
     for (i = 0; i < ctx->nb_registered_frames; i++) {
-        if (avctx->pix_fmt == AV_PIX_FMT_CUDA && ctx->registered_frames[i].ptr == frame->data[0])
+        if (avctx->pix_fmt == AV_PIX_FMT_HJK && ctx->registered_frames[i].ptr == frame->data[0])
             return i;
         else if (avctx->pix_fmt == AV_PIX_FMT_D3D11 && ctx->registered_frames[i].ptr == frame->data[0] && ctx->registered_frames[i].ptr_index == (intptr_t)frame->data[1])
             return i;
@@ -1625,7 +1628,7 @@ static int hjkenc_register_frame(AVCodecContext *avctx, const AVFrame *frame)
     reg.pitch              = frame->linesize[0];
     reg.resourceToRegister = frame->data[0];
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA) {
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK) {
         reg.resourceType   = HJK_ENC_INPUT_RESOURCE_TYPE_HJKDEVICEPTR;
     }
     else if (avctx->pix_fmt == AV_PIX_FMT_D3D11) {
@@ -1662,7 +1665,7 @@ static int hjkenc_upload_frame(AVCodecContext *avctx, const AVFrame *frame,
     int res;
     HJKENCSTATUS hjk_status;
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         int reg_idx = hjkenc_register_frame(avctx, frame);
         if (reg_idx < 0) {
             av_log(avctx, AV_LOG_ERROR, "Could not register an input HW frame\n");
@@ -1853,7 +1856,7 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, HjkencSu
     }
 
 
-    if (avctx->pix_fmt == AV_PIX_FMT_CUDA || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
+    if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         ctx->registered_frames[tmpoutsurf->reg_idx].mapped -= 1;
         if (ctx->registered_frames[tmpoutsurf->reg_idx].mapped == 0) {
             hjk_status = p_hjkenc->hjkEncUnmapInputResource(ctx->hjkencoder, ctx->registered_frames[tmpoutsurf->reg_idx].in_map.mappedResource);
