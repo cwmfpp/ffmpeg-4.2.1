@@ -67,7 +67,7 @@ typedef struct HjkencSurface
     int height;
     int pitch;
 
-    HJK_ENC_OUTPUT_PTR output_surface;
+    HJK_ENC_OUTPUT_PTR output_surface; /* decode out, point to internal info */
     HJK_ENC_BUFFER_FORMAT format;
     int size;
 } HjkencSurface;
@@ -144,9 +144,9 @@ typedef struct HjkencContext
     int encoder_flushing;
 
     struct {
-        void *ptr;
+        void *ptr; /* = frame->data[0] */
         int ptr_index;
-        HJK_ENC_REGISTERED_PTR regptr;
+        HJK_ENC_REGISTERED_PTR regptr; /* point to internal register HJK_ENC_REGISTER_RESOURCE*/
         int mapped;
         HJK_ENC_MAP_INPUT_RESOURCE in_map;
     } registered_frames[MAX_REGISTERED_FRAMES];

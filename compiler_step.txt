@@ -25,3 +25,7 @@ export LD_LIBRARY_PATH="/home/chen/work/project/ffmpeg/FFmpeg-1/temp/lib:/home/c
 cd doc/examples
 执行./encode_video test.h264 libx264
 生成test.h264文件，可播放
+
+硬件jpeg的demo参考vaapi_encode.c
+
+valgrind --leak-check=full --track-origins=yes --show-leak-kinds=all 

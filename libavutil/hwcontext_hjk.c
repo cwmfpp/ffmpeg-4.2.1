@@ -27,7 +27,7 @@
 #include "pixfmt.h"
 #include "imgutils.h"
 
-#define HJK_FRAME_ALIGNMENT 256
+#define HJK_FRAME_ALIGNMENT 128
 
 typedef struct HJKFramesContext {
     int shift_width, shift_height;

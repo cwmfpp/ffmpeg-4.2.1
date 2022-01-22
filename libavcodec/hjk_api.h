@@ -55,18 +55,31 @@ typedef struct HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS {
 }HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS;
 
 typedef enum {
-    hjk_enc_caps_1,
-}HJK_ENC_CAPS;
-
-typedef enum {
     HJK_ENC_PIC_TYPE_IDR,
     HJK_ENC_PIC_TYPE_I,
     HJK_ENC_PIC_TYPE_P,
     HJK_ENC_PIC_TYPE_B,
     HJK_ENC_PIC_TYPE_BI,
-};
+} HJK_ENC_PIC_TYPE;
 
-typedef struct HJK_ENC_CAPS_PARAM{
+typedef enum {
+    HJK_ENC_CAPS_SUPPORT_YUV444_ENCODE,
+    HJK_ENC_CAPS_SUPPORT_LOSSLESS_ENCODE,
+    HJK_ENC_CAPS_WIDTH_MAX,
+    HJK_ENC_CAPS_HEIGHT_MAX,
+    HJK_ENC_CAPS_NUM_MAX_BFRAMES,
+    HJK_ENC_CAPS_SUPPORT_FIELD_ENCODING,
+    HJK_ENC_CAPS_SUPPORT_10BIT_ENCODE,
+    HJK_ENC_CAPS_SUPPORT_LOOKAHEAD,
+    HJK_ENC_CAPS_SUPPORT_TEMPORAL_AQ,
+    HJK_ENC_CAPS_SUPPORT_WEIGHTED_PREDICTION,
+    HJK_ENC_CAPS_SUPPORT_CABAC,
+    HJK_ENC_CAPS_SUPPORT_BFRAME_REF_MODE,
+    HJK_ENC_CAPS_SUPPORT_MULTIPLE_REF_FRAMES,
+    HJK_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE,
+} HJK_ENC_CAPS;
+
+typedef struct _HJK_ENC_CAPS_PARAM{
     int version;
     HJK_ENC_CAPS capsToQuery;
 }HJK_ENC_CAPS_PARAM;
@@ -120,8 +133,8 @@ typedef struct _HJK_ENC_RC_PARAMS {
     int enableMinQP;
     int enableMaxQP;
     MIN_QP minQP;
-    MAX_QP maxQP
-}HJK_ENC_RC_PARAMS;
+    MAX_QP maxQP;
+} HJK_ENC_RC_PARAMS;
 
 typedef enum {
     FF_PROFILE_MJPEG_BASELINE,
@@ -185,7 +198,7 @@ typedef enum {
     HJK_ENC_TIER_HEVC_HIGH,
 }HJK_ENC_TIER_HEVC;
 
-enum {
+typedef enum {
     HJK_ENC_HEVC_PROFILE_MAIN_GUID,
     HJK_ENC_HEVC_PROFILE_MAIN10_GUID,
     HJK_ENC_HEVC_PROFILE_FREXT_GUID,
@@ -241,7 +254,7 @@ typedef enum {
     HJK_ENC_MJPEG_FMO_DISABLE,
 }HJK_ENC_MJPEG_FMO;
 
-typedef struct HJK_ENC_CONFIG {
+typedef struct _HJK_ENC_CONFIG {
     int version;
     int frameIntervalP;
     int gopLength;
@@ -271,23 +284,6 @@ typedef enum {
 } HJK_ENC_CODEC_GUID;
 
 typedef HJK_ENC_CODEC_GUID GUID;
-
-typedef enum {
-    HJK_ENC_CAPS_SUPPORT_YUV444_ENCODE,
-    HJK_ENC_CAPS_SUPPORT_LOSSLESS_ENCODE,
-    HJK_ENC_CAPS_WIDTH_MAX,
-    HJK_ENC_CAPS_HEIGHT_MAX,
-    HJK_ENC_CAPS_NUM_MAX_BFRAMES,
-    HJK_ENC_CAPS_SUPPORT_FIELD_ENCODING,
-    HJK_ENC_CAPS_SUPPORT_10BIT_ENCODE,
-    HJK_ENC_CAPS_SUPPORT_LOOKAHEAD,
-    HJK_ENC_CAPS_SUPPORT_TEMPORAL_AQ,
-    HJK_ENC_CAPS_SUPPORT_WEIGHTED_PREDICTION,
-    HJK_ENC_CAPS_SUPPORT_CABAC,
-    HJK_ENC_CAPS_SUPPORT_BFRAME_REF_MODE,
-    HJK_ENC_CAPS_SUPPORT_MULTIPLE_REF_FRAMES,
-    HJK_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE,
-} HJK_ENC_CAPS_SUPPORT;
 
 typedef enum {
     HJK_ENC_MJPEG_ENTROPY_CODING_MODE_CABAC
@@ -379,8 +375,8 @@ typedef struct _HJK_ENC_PIC_PARAMS {
 
 typedef struct _HJK_ENC_MAP_INPUT_RESOURCE {
     int version; // HJK_ENC_MAP_INPUT_RESOURCE_VER;
-    HJK_ENC_REGISTERED_PTR registeredResource;
-    HJK_ENC_INPUT_PTR mappedResource;
+    HJK_ENC_REGISTERED_PTR registeredResource; /* = registered_frames[i].regptr */
+    HJK_ENC_INPUT_PTR mappedResource; /* map to = HJK_ENC_REGISTER_RESOURCE for encoder hjkEncEncodePicture */
     HJK_ENC_BUFFER_FORMAT mappedBufferFmt;
 } HJK_ENC_MAP_INPUT_RESOURCE;
 
@@ -389,21 +385,21 @@ typedef struct _HJK_ENC_REGISTER_RESOURCE {
     int width;
     int height;
     int pitch;
-    int resourceToRegister;
+    void *resourceToRegister; /*  = frame->data[0] <-- HjkFunctions(hjMemAlloc)*/
     int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_CUDADEVICEPTR
                       // HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX
     intptr_t subResourceIndex;
     HJK_ENC_BUFFER_FORMAT bufferFormat;
-    HJK_ENC_REGISTERED_PTR registeredResource;
+    HJK_ENC_REGISTERED_PTR registeredResource; /* internal use */
 } HJK_ENC_REGISTER_RESOURCE;
 
 typedef struct _HJK_ENC_LOCK_BITSTREAM {
     int version; // HJK_ENC_LOCK_BITSTREAM_VER;
     int doNotWait;
     HJK_ENC_OUTPUT_PTR outputBitstream;
-    int sliceOffsets;
-    int64_t bitstreamSizeInBytes;
-    void *bitstreamBufferPtr;
+    uint32_t *sliceOffsets;
+    int64_t bitstreamSizeInBytes;/*encoder data length*/
+    void *bitstreamBufferPtr;/* encoder data */
     int pictureType;
     int frameAvgQP;
     int outputTimeStamp;
@@ -426,6 +422,7 @@ typedef struct _HJK_ENC_RECONFIGURE_PARAMS {
 typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
     int version;
     int (*hjkEncGetLastErrorString)(void *handle);
+    /* p1 open hw, open encoder*/
     int (*hjkEncOpenEncodeSessionEx)(
         HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS *open_params, void **handle);
     int (*hjkEncGetEncodeGUIDCount)(void *handle, int *count);
@@ -451,6 +448,7 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
     int (*hjkEncDestroyInputBuffer)(void *handle,
                                     HJK_ENC_INPUT_PTR input_surface);
     int (*hjkEncGetSequenceParams)(void *handle, HJK_ENC_SEQUENCE_PARAM_PAYLOAD *payload);
+    /* p2 enc encoder */
     int (*hjkEncEncodePicture)(void *handle, HJK_ENC_PIC_PARAMS *params);
     int (*hjkEncUnmapInputResource)(
         void *handle, HJK_ENC_INPUT_PTR mappedResource);
@@ -463,6 +461,7 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
                                   HJK_ENC_MAP_INPUT_RESOURCE *in_map);
     int (*hjkEncLockInputBuffer)(void *handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams);
     int (*hjkEncUnlockInputBuffer)(void *handle, HJK_ENC_INPUT_PTR input_surface);
+    /* p3 encode data wait */
     int (*hjkEncLockBitstream)(void *handle, HJK_ENC_LOCK_BITSTREAM *lock_params);
     int (*hjkEncUnlockBitstream)(void *handle, HJK_ENC_OUTPUT_PTR output_surface);
     int (*hjkEncReconfigureEncoder)(void *handle, HJK_ENC_RECONFIGURE_PARAMS *params);
@@ -481,9 +480,10 @@ typedef void * HJdeviceptr;
 
 typedef enum {
     HJ_CTX_SCHED_BLOCKING_SYNC,
-};
+} HJ_CTX_SCHED;
 
 typedef void *HJdeviceptr;
+
 typedef enum {
     HJ_MEMORYTYPE_HOST,
     HJ_MEMORYTYPE_DEVICE,
@@ -511,7 +511,7 @@ typedef struct _HjkFunctions {
                                       HJdevice cu_device);
     int (*hjCtxCreate)(HJcontext * hj_context_internal, int size,
                         HJdevice cu_device);
-    int (*hjCtxDestroy)(HJcontext * hj_context_internal);
+    int (*hjCtxDestroy)(HJcontext hj_context_internal);
     int (*hjInit)(int size);
     int (*hjDeviceGetCount)(int *nb_devices);
     int (*hjMemFree)(HJdeviceptr data);

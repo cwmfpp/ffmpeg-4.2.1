@@ -109,19 +109,19 @@ int main(int argc, char *argv[])
     const char *enc_name = "mjpeg_hjkenc";
 
     if (argc < 5) {
-        fprintf(stderr, "Usage: %s <width> <height> <input file> <output file>\n", argv[0]);
-        return -1;
+        //fprintf(stderr, "Usage: %s <width> <height> <input file> <output file>\n", argv[0]);
+        //return -1;
     }
 
-    width  = atoi(argv[1]);
-    height = atoi(argv[2]);
+    width  = 1920;//atoi(argv[1]);
+    height = 1080;//atoi(argv[2]);
     size   = width * height;
 
-    if (!(fin = fopen(argv[3], "r"))) {
+    if (!(fin = fopen("yuv1920x1080.yuv"/*argv[3]*/, "r"))) {
         fprintf(stderr, "Fail to open input file : %s\n", strerror(errno));
         return -1;
     }
-    if (!(fout = fopen(argv[4], "w+b"))) {
+    if (!(fout = fopen("1.jpg"/*argv[4]*/, "w+b"))) {
         fprintf(stderr, "Fail to open output file : %s\n", strerror(errno));
         err = -1;
         goto close;
