@@ -25,7 +25,7 @@
 #endif
 
 #include "pixfmt.h"
-#include "libavcodec/hjk_api.h"
+#include "libavcodec/ffhjkcodec/hjk_api.h"
 
 /**
  * @file

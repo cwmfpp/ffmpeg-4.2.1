@@ -1,6 +1,10 @@
 #ifndef AVCODEC_HJK_API_H
 #define AVCODEC_HJK_API_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include "libavutil/error.h"
 #include "libavutil/log.h"
@@ -120,8 +124,8 @@ typedef struct _HJK_ENC_RC_PARAMS {
     int enableTemporalAQ;
     int enableLookahead;
     int lookaheadDepth;
-    char *disableIadapt; //"disabled" : "enabled",
-    char *disableBadapt; //"disabled" : "enabled");
+    int disableIadapt; //"disabled" : "enabled",
+    int disableBadapt; //"disabled" : "enabled");
     int strictGOPTarget;
     int enableNonRefP;
     int zeroReorderDelay;
@@ -421,7 +425,6 @@ typedef struct _HJK_ENC_RECONFIGURE_PARAMS {
 
 typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
     int version;
-    int (*hjkEncGetLastErrorString)(void *handle);
     /* p1 open hw, open encoder*/
     int (*hjkEncOpenEncodeSessionEx)(
         HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS *open_params, void **handle);
@@ -430,7 +433,6 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
                                 int *ptr_count);
     int (*hjkEncGetEncodeCaps)(void *handle, int encodeGUID,
                                HJK_ENC_CAPS_PARAM *caps_params, int *val);
-    int (*hjkEncDestroyEncoder)(void *handle);
     int (*hjkEncGetEncodePresetConfigEx)(void *handle, int encodeGUID,
                                          int presetGUID, int tuningInfo,
                                          HJK_ENC_PRESET_CONFIG *preset_config);
@@ -445,27 +447,29 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
                                   HJstream *cu_stream1);
     int (*hjkEncCreateInputBuffer)(void *handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf);
     int (*hjkEncCreateBitstreamBuffer)(void *handle, HJK_ENC_CREATE_BITSTREAM_BUFFER *allocOut);
-    int (*hjkEncDestroyInputBuffer)(void *handle,
-                                    HJK_ENC_INPUT_PTR input_surface);
     int (*hjkEncGetSequenceParams)(void *handle, HJK_ENC_SEQUENCE_PARAM_PAYLOAD *payload);
+    int (*hjkEncRegisterResource)(void *handle, HJK_ENC_REGISTER_RESOURCE *reg);
+    int (*hjkEncReconfigureEncoder)(void *handle, HJK_ENC_RECONFIGURE_PARAMS *params);
+    int (*hjkEncMapInputResource)(void *handle,
+                                  HJK_ENC_MAP_INPUT_RESOURCE *in_map);
+    int (*hjkEncLockInputBuffer)(void *handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams);
+    int (*hjkEncUnlockInputBuffer)(void *handle, HJK_ENC_INPUT_PTR input_surface);
     /* p2 enc encoder */
     int (*hjkEncEncodePicture)(void *handle, HJK_ENC_PIC_PARAMS *params);
+    /* p3 encode data wait */
+    int (*hjkEncLockBitstream)(void *handle, HJK_ENC_LOCK_BITSTREAM *lock_params);
+    int (*hjkEncUnlockBitstream)(void *handle, HJK_ENC_OUTPUT_PTR output_surface);
+
     int (*hjkEncUnmapInputResource)(
         void *handle, HJK_ENC_INPUT_PTR mappedResource);
     int (*hjkEncUnregisterResource)(void *handle,
                                     HJK_ENC_REGISTERED_PTR regptr);
     int (*hjkEncDestroyBitstreamBuffer)(void *handle,
                                         HJK_ENC_OUTPUT_PTR output_surface);
-    int (*hjkEncRegisterResource)(void *handle, HJK_ENC_REGISTER_RESOURCE *reg);
-    int (*hjkEncMapInputResource)(void *handle,
-                                  HJK_ENC_MAP_INPUT_RESOURCE *in_map);
-    int (*hjkEncLockInputBuffer)(void *handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams);
-    int (*hjkEncUnlockInputBuffer)(void *handle, HJK_ENC_INPUT_PTR input_surface);
-    /* p3 encode data wait */
-    int (*hjkEncLockBitstream)(void *handle, HJK_ENC_LOCK_BITSTREAM *lock_params);
-    int (*hjkEncUnlockBitstream)(void *handle, HJK_ENC_OUTPUT_PTR output_surface);
-    int (*hjkEncReconfigureEncoder)(void *handle, HJK_ENC_RECONFIGURE_PARAMS *params);
-
+    int (*hjkEncDestroyEncoder)(void *handle);
+    int (*hjkEncDestroyInputBuffer)(void *handle,
+                                    HJK_ENC_INPUT_PTR input_surface);
+    int (*hjkEncGetLastErrorString)(void *handle);
 }HJK_ENCODE_API_FUNCTION_LIST;
 
 typedef void *HJcontext;
@@ -520,7 +524,7 @@ typedef struct _HjkFunctions {
     int (*hjStreamSynchronize)(HJstream stream);
     
     hjk_check_GetErrorName_cb *hjkGetErrorName;
-} HjkFunctions;
+} HjkFunctions; /* for hwcontext hjk */
 
 typedef struct _HjkencFunctions {
     int (*HjkEncodeAPIGetMaxSupportedVersion)(uint32_t *hjkenc_max_ver);
@@ -558,7 +562,11 @@ typedef enum {
 
 int hjk_load_functions(HjkFunctions **hjk_dl, void *avctx);
 int hjkenc_load_functions(HjkencFunctions **hjkenc_dl, void *avctx);
-void hjkenc_free_functions(HjkencFunctions *hjkenc_dl);
-void hjk_free_functions(HjkFunctions *hjk_dl);
+void hjkenc_free_functions(HjkencFunctions **hjkenc_dl);
+void hjk_free_functions(HjkFunctions **hjk_dl);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* AVCODEC_HJK_API_H */

@@ -28,17 +28,12 @@
 typedef void ID3D11Device;
 #endif
 
-#ifdef ABCD
-#include <ffhjkcodec/hjkEncodeAPI.h>
-
-#include "compat/hjk/dynlink_loader.h"
-#endif
+#include "ffhjkcodec/hjk_api.h"
 
 #include "libavutil/fifo.h"
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
-#include "hjk_api.h"
 
 #define MAX_REGISTERED_FRAMES 64
 #define RC_MODE_DEPRECATED 0x800000

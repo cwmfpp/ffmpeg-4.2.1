@@ -1,20 +1,5 @@
 
 
-
-typedef struct _HJK_ENC_REGISTER_RESOURCE {
-    int version; // HJK_ENC_REGISTER_RESOURCE_VER;
-    int width;
-    int height;
-    int pitch;
-    void *resourceToRegister; /*  = frame->data[0] <-- HjkFunctions(hjMemAlloc)*/
-    int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_CUDADEVICEPTR
-                      // HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX
-    intptr_t subResourceIndex;
-    HJK_ENC_BUFFER_FORMAT bufferFormat;
-    HJK_ENC_REGISTERED_PTR registeredResource; /* internal use, map */  -->  &p_hjk_enc_info->m_list_enc_reg_res[i] 
-} HJK_ENC_REGISTER_RESOURCE;  --> m_list_enc_reg_res[i] /*hjk_EncRegisterResource*/
-
-
 /*hjk_EncEncodePicture*/
 typedef struct _HJK_ENC_PIC_PARAMS {
     int version; // HJK_ENC_PIC_PARAMS_VER;
@@ -67,11 +52,20 @@ typedef struct HjkencSurface
 } HjkencSurface;                                                                        int m_enc_data_len;
 																			        } HjkEncoderInterOut;
 																						
-																						
-struct {
-	void *ptr; /* = frame->data[0] */
-	int ptr_index;
-	HJK_ENC_REGISTERED_PTR regptr; ------------> HJK_ENC_REGISTER_RESOURCE m_list_enc_reg_res[i];                   
+					
+												typedef struct _HJK_ENC_REGISTER_RESOURCE {
+                                                    int version; // HJK_ENC_REGISTER_RESOURCE_VER;
+                                                    int width;
+                                                    int height;
+                                                    int pitch;
+                                                    void *resourceToRegister; /*  = frame->data[0] <-- HjkFunctions(hjMemAlloc)*/
+					                                int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_CUDADEVICEPTR
+struct {                                                              // HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX
+	void *ptr; /* = frame->data[0] */               intptr_t subResourceIndex;
+	int ptr_index;                                  HJK_ENC_BUFFER_FORMAT bufferFormat;
+	HJK_ENC_REGISTERED_PTR regptr; ---------------->HJK_ENC_REGISTERED_PTR registeredResource; ----> HJK_ENC_REGISTER_RESOURCE &m_list_enc_reg_res[i] 
+                                                } HJK_ENC_REGISTER_RESOURCE; /* hjk_EncRegisterResource */
+	
 	int mapped;
 	HJK_ENC_MAP_INPUT_RESOURCE in_map;   --------> typedef struct _HJK_ENC_MAP_INPUT_RESOURCE {
 } registered_frames[MAX_REGISTERED_FRAMES];            int version; // HJK_ENC_MAP_INPUT_RESOURCE_VER;
@@ -79,5 +73,4 @@ struct {
                                                        HJK_ENC_INPUT_PTR mappedResource; ----> HJK_ENC_REGISTER_RESOURCE m_list_enc_reg_res[i]; 
                                                        HJK_ENC_BUFFER_FORMAT mappedBufferFmt;
                                                    } HJK_ENC_MAP_INPUT_RESOURCE;
-
-                                                   
+												   

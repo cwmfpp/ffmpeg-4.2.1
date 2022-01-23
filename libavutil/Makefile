@@ -173,7 +173,7 @@ OBJS-$(CONFIG_QSV)                      += hwcontext_qsv.o
 OBJS-$(CONFIG_VAAPI)                    += hwcontext_vaapi.o
 OBJS-$(CONFIG_VIDEOTOOLBOX)             += hwcontext_videotoolbox.o
 OBJS-$(CONFIG_VDPAU)                    += hwcontext_vdpau.o
-OBJS-$(CONFIG_HJK)                      += ../libavcodec/hjk_api.o hwcontext_hjk.o
+OBJS-$(CONFIG_HJK)                      += ../libavcodec/ffhjkcodec/hjk_api.o hwcontext_hjk.o
 $(warning chenwenmin CONFIG_HJK=$(CONFIG_HJK))
 
 OBJS += $(COMPAT_OBJS:%=../compat/%)
