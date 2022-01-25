@@ -6,9 +6,6 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "libavutil/error.h"
-#include "libavutil/log.h"
-#include "libavutil/hjk_check.h"
 
 #define HJK_ENC_PIC_PARAMS_VER 1
 #define HJK_ENC_RECONFIGURE_PARAMS_VER 1
@@ -30,6 +27,13 @@ extern "C" {
 #define HJKENCAPI_MINOR_VERSION 1
 
 typedef enum {
+    HJK_SUCCESS,
+    HJK_FAILED,
+} HJresult;
+
+#define HJKAPI 
+
+typedef enum {
     HJK_ENC_DEVICE_TYPE_HJK,
     HJK_ENC_DEVICE_TYPE_DIRECTX,
 }HJK_ENC_DEVICE_TYPE;
@@ -40,16 +44,6 @@ typedef enum {
 } HJK_ENC_INPUT_RESOURCE_TYPE;
 
 typedef void * HJstream;
-
-typedef enum {
-    HJK_ENC_PARAMS_RC_CONSTQP,
-    HJK_ENC_PARAMS_RC_VBR_MINQP,
-    HJK_ENC_PARAMS_RC_VBR_HQ,
-    HJK_ENC_PARAMS_RC_VBR,
-    HJK_ENC_PARAMS_RC_CBR,
-    HJK_ENC_PARAMS_RC_CBR_HQ,
-    HJK_ENC_PARAMS_RC_CBR_LOWDELAY_HQ,
-} HJK_ENC_PARAMS_RC;
 
 typedef struct HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS {
     int version;
@@ -82,6 +76,51 @@ typedef enum {
     HJK_ENC_CAPS_SUPPORT_MULTIPLE_REF_FRAMES,
     HJK_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE,
 } HJK_ENC_CAPS;
+
+enum {
+    HJK_ENC_LEVEL_AUTOSELECT,
+    HJK_ENC_LEVEL_MJPEG_1,
+    HJK_ENC_LEVEL_MJPEG_1b,
+    HJK_ENC_LEVEL_MJPEG_11,
+    HJK_ENC_LEVEL_MJPEG_12,
+    HJK_ENC_LEVEL_MJPEG_13,
+    HJK_ENC_LEVEL_MJPEG_2,
+    HJK_ENC_LEVEL_MJPEG_21,
+    HJK_ENC_LEVEL_MJPEG_22,
+    HJK_ENC_LEVEL_MJPEG_3,
+    HJK_ENC_LEVEL_MJPEG_31,
+    HJK_ENC_LEVEL_MJPEG_32,
+    HJK_ENC_LEVEL_MJPEG_4,
+    HJK_ENC_LEVEL_MJPEG_41,
+    HJK_ENC_LEVEL_MJPEG_42,
+    HJK_ENC_LEVEL_MJPEG_5,
+    HJK_ENC_LEVEL_MJPEG_51,
+};
+
+enum {
+    HJK_ENC_PARAMS_RC_CONSTQP,
+    HJK_ENC_PARAMS_RC_VBR,
+    HJK_ENC_PARAMS_RC_CBR,
+    HJK_ENC_PARAMS_RC_VBR_MINQP,
+    HJK_ENC_PARAMS_RC_2_PASS_QUALITY,
+    HJK_ENC_PARAMS_RC_2_PASS_FRAMESIZE_CAP,
+    HJK_ENC_PARAMS_RC_2_PASS_VBR,
+    HJK_ENC_PARAMS_RC_CBR_LOWDELAY_HQ,
+    HJK_ENC_PARAMS_RC_CBR_HQ,
+    HJK_ENC_PARAMS_RC_VBR_HQ,
+};
+
+enum {
+    HJK_ENC_MJPEG_ENTROPY_CODING_MODE_AUTOSELECT,
+    HJK_ENC_MJPEG_ENTROPY_CODING_MODE_CABAC,
+    HJK_ENC_MJPEG_ENTROPY_CODING_MODE_CAVLC,
+};
+
+enum {
+    HJK_ENC_BFRAME_REF_MODE_DISABLED,
+    HJK_ENC_BFRAME_REF_MODE_EACH,
+    HJK_ENC_BFRAME_REF_MODE_MIDDLE,
+};
 
 typedef struct _HJK_ENC_CAPS_PARAM{
     int version;
@@ -289,10 +328,6 @@ typedef enum {
 
 typedef HJK_ENC_CODEC_GUID GUID;
 
-typedef enum {
-    HJK_ENC_MJPEG_ENTROPY_CODING_MODE_CABAC
-}HJK_ENC_MJPEG_ENTROPY_CODING_MODE;
-
 typedef struct _HJK_ENC_INITIALIZE_PARAMS {
     int presetGUID;
     int encodeGUID; // HJK_ENC_CODEC_GUID 
@@ -390,7 +425,7 @@ typedef struct _HJK_ENC_REGISTER_RESOURCE {
     int height;
     int pitch;
     void *resourceToRegister; /*  = frame->data[0] <-- HjkFunctions(hjMemAlloc)*/
-    int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_CUDADEVICEPTR
+    int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_HJKDEVICEPTR
                       // HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX
     intptr_t subResourceIndex;
     HJK_ENC_BUFFER_FORMAT bufferFormat;
@@ -443,8 +478,8 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
                                        HJK_ENC_PRESET_CONFIG *preset_config);
 
     int (*hjkEncInitializeEncoder)(void *handle, HJK_ENC_INITIALIZE_PARAMS *init_encode_params);
-    int (*hjkEncSetIOCudaStreams)(void *handle, HJstream *cu_stream,
-                                  HJstream *cu_stream1);
+    int (*hjkEncSetIOHjkStreams)(void *handle, HJstream *hj_stream,
+                                  HJstream *hj_stream1);
     int (*hjkEncCreateInputBuffer)(void *handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf);
     int (*hjkEncCreateBitstreamBuffer)(void *handle, HJK_ENC_CREATE_BITSTREAM_BUFFER *allocOut);
     int (*hjkEncGetSequenceParams)(void *handle, HJK_ENC_SEQUENCE_PARAM_PAYLOAD *payload);
@@ -509,12 +544,12 @@ typedef struct _HJK_MEMCPY2D {
 typedef struct _HjkFunctions {
     int (*hjCtxPushCurrent)(HJcontext hj_context);
     int (*hjCtxPopCurrent)(HJcontext *dummy);
-    int (*hjDeviceGet)(HJdevice * cu_device, int idx);
-    int (*hjDeviceGetName)(char *name, int name_size, HJdevice cu_device);
+    int (*hjDeviceGet)(HJdevice * hj_device, int idx);
+    int (*hjDeviceGetName)(char *name, int name_size, HJdevice hj_device);
     int (*hjDeviceComputeCapability)(int *major, int *minor,
-                                      HJdevice cu_device);
+                                      HJdevice hj_device);
     int (*hjCtxCreate)(HJcontext * hj_context_internal, int size,
-                        HJdevice cu_device);
+                        HJdevice hj_device);
     int (*hjCtxDestroy)(HJcontext hj_context_internal);
     int (*hjInit)(int size);
     int (*hjDeviceGetCount)(int *nb_devices);
@@ -522,8 +557,9 @@ typedef struct _HjkFunctions {
     int (*hjMemAlloc)(HJdeviceptr *data, int size);
     int (*hjMemcpy2DAsync)(HJK_MEMCPY2D *cpy, HJstream stream);
     int (*hjStreamSynchronize)(HJstream stream);
-    
-    hjk_check_GetErrorName_cb *hjkGetErrorName;
+
+    HJresult (*hjGetErrorName)(HJresult error, const char **pstr);
+    HJresult (*hjGetErrorString)(HJresult error, const char **pstr);
 } HjkFunctions; /* for hwcontext hjk */
 
 typedef struct _HjkencFunctions {

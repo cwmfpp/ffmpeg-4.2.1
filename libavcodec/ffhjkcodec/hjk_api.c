@@ -2,53 +2,37 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
-#0  hjk_CtxPushCurrent (hjk_context=0x8404bc0) at libavutil/../libavcodec/hjk_api.c:8
-#1  0x00007ffffd78b3ac in hjk_pool_alloc (opaque=0x8406420, size=3110400) at libavutil/hwcontext_hjk.c:102
-#2  0x00007ffffd777b96 in pool_alloc_buffer (pool=0x8406520) at libavutil/buffer.c:312
-#3  0x00007ffffd777cf2 in av_buffer_pool_get (pool=0x8406520) at libavutil/buffer.c:349
-#4  0x00007ffffd78b639 in hjk_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
-#5  0x00007ffffd78a523 in av_hwframe_get_buffer (hwframe_ref=0x8406500, frame=0x8406630, flags=0) at libavutil/hwcontext.c:521
-#6  0x00007ffffd789e50 in hwframe_pool_prealloc (ref=0x8406500) at libavutil/hwcontext.c:320
-#7  0x00007ffffd78a042 in av_hwframe_ctx_init (ref=0x8406500) at libavutil/hwcontext.c:373
-#8  0x000000000800114f in set_hwframe_ctx (ctx=0x8404be0, hw_device_ctx=0x8404770) at doc/examples/hjkjpg_encode.c:60
-#9  0x0000000008001722 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:156
+#0  hj_Init (size=0) at libavutil/../libavcodec/hj_api.c:71
+#1  0x00007ffffd78beae in hj_device_create (device_ctx=0x84046c0, device=0x0, opts=0x0, flags=0) at libavutil/hwcontext_hjk.c:337
+#2  0x00007ffffd78a776 in av_hwdevice_ctx_create (pdevice_ref=0x8203020 <hw_device_ctx>, type=AV_HWDEVICE_TYPE_HJK, device=0x0, opts=0x0, flags=0)
+    at libavutil/hwcontext.c:594
+#3  0x000000000800155f in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:130
 */
-static int hjk_CtxPushCurrent(HJcontext hjk_context)
+static int hj_Init(int size)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-/*
-#0  hjk_CtxPopCurrent (dummy=0x7ffffffedcb0) at libavutil/../libavcodec/hjk_api.c:15
-#1  0x00007ffffd78b4a0 in hjk_pool_alloc (opaque=0x8406420, size=3110400) at libavutil/hwcontext_hjk.c:117
-#2  0x00007ffffd777b96 in pool_alloc_buffer (pool=0x8406520) at libavutil/buffer.c:312
-#3  0x00007ffffd777cf2 in av_buffer_pool_get (pool=0x8406520) at libavutil/buffer.c:349
-#4  0x00007ffffd78b639 in hjk_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
-#5  0x00007ffffd78a523 in av_hwframe_get_buffer (hwframe_ref=0x8406500, frame=0x8406630, flags=0) at libavutil/hwcontext.c:521
-#6  0x00007ffffd789e50 in hwframe_pool_prealloc (ref=0x8406500) at libavutil/hwcontext.c:320
-#7  0x00007ffffd78a042 in av_hwframe_ctx_init (ref=0x8406500) at libavutil/hwcontext.c:373
-#8  0x000000000800114f in set_hwframe_ctx (ctx=0x8404be0, hw_device_ctx=0x8404770) at doc/examples/hjkjpg_encode.c:60
-#9  0x0000000008001722 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:156
-*/
-static int hjk_CtxPopCurrent(HJcontext *dummy)
+static int hj_DeviceGetCount(int *nb_devices)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-static int hjk_DeviceGet(HJdevice * cu_device, int idx)
+static int hj_DeviceGet(HJdevice * hj_device, int idx)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-static int hjk_DeviceGetName(char *name, int name_size, HJdevice cu_device)
+static int hj_DeviceGetName(char *name, int name_size, HJdevice hj_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -57,110 +41,90 @@ static int hjk_DeviceGetName(char *name, int name_size, HJdevice cu_device)
     }
     snprintf(name, name_size - 1, "Hello HJK Device");
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-static int hjk_DeviceComputeCapability(int *major, int *minor,
-								  HJdevice cu_device)
+static int hj_DeviceComputeCapability(int *major, int *minor,
+								  HJdevice hj_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
 /*
-#0  hjk_CtxCreate (hjk_context_internal=0x8404720, size=0, cu_device=0x7ffffd9eaf60 <ff_hwcontext_type_hjk>) at libavutil/../libavcodec/hjk_api.c:74
-#1  0x00007ffffd78c809 in hjk_device_create (device_ctx=0x84046c0, device=0x0, opts=0x0, flags=0) at libavutil/hwcontext_hjk.c:345
+#0  hj_CtxCreate (hj_context_internal=0x8404720, size=0, hj_device=0x7ffffd9eaf60 <ff_hwcontext_type_hjk>) at libavutil/../libavcodec/hj_api.c:74
+#1  0x00007ffffd78c809 in hj_device_create (device_ctx=0x84046c0, device=0x0, opts=0x0, flags=0) at libavutil/hwcontext_hjk.c:345
 #2  0x00007ffffd78b03f in av_hwdevice_ctx_create (pdevice_ref=0x8203020 <hw_device_ctx>, type=AV_HWDEVICE_TYPE_HJK, device=0x0, opts=0x0, flags=0)
     at libavutil/hwcontext.c:594
 #3  0x000000000800155f in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:130
 */
-static int hjk_CtxCreate(HJcontext * hjk_context_internal, int size,
-					HJdevice cu_device)
+static int hj_CtxCreate(HJcontext * hj_context_internal, int size,
+					HJdevice hj_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    *hjk_context_internal = (HJcontext)malloc(sizeof(HJcontext));
-    if (NULL == *hjk_context_internal) {
+    *hj_context_internal = (HJcontext)malloc(sizeof(HJcontext));
+    if (NULL == *hj_context_internal) {
         return HJK_ENC_ERR_OUT_OF_MEMORY;
     }
 
-    return HJK_ENC_SUCCESS;
-}
-
-static int hjk_CtxDestroy(HJcontext hjk_context_internal)
-{
-    printf("%d %s \n", __LINE__, __FUNCTION__);
-
-    if (NULL == hjk_context_internal) {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
-        return HJK_ENC_ERR_INVALID_PTR;
-    }
-
-    free(hjk_context_internal);
-
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
 /*
-#0  hjk_Init (size=0) at libavutil/../libavcodec/hjk_api.c:71
-#1  0x00007ffffd78beae in hjk_device_create (device_ctx=0x84046c0, device=0x0, opts=0x0, flags=0) at libavutil/hwcontext_hjk.c:337
-#2  0x00007ffffd78a776 in av_hwdevice_ctx_create (pdevice_ref=0x8203020 <hw_device_ctx>, type=AV_HWDEVICE_TYPE_HJK, device=0x0, opts=0x0, flags=0)
-    at libavutil/hwcontext.c:594
-#3  0x000000000800155f in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:130
+#0  hj_CtxPopCurrent (dummy=0x7ffffffedcb0) at libavutil/../libavcodec/hj_api.c:15
+#1  0x00007ffffd78b4a0 in hj_pool_alloc (opaque=0x8406420, size=3110400) at libavutil/hwcontext_hjk.c:117
+#2  0x00007ffffd777b96 in pool_alloc_buffer (pool=0x8406520) at libavutil/buffer.c:312
+#3  0x00007ffffd777cf2 in av_buffer_pool_get (pool=0x8406520) at libavutil/buffer.c:349
+#4  0x00007ffffd78b639 in hj_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
+#5  0x00007ffffd78a523 in av_hwframe_get_buffer (hwframe_ref=0x8406500, frame=0x8406630, flags=0) at libavutil/hwcontext.c:521
+#6  0x00007ffffd789e50 in hwframe_pool_prealloc (ref=0x8406500) at libavutil/hwcontext.c:320
+#7  0x00007ffffd78a042 in av_hwframe_ctx_init (ref=0x8406500) at libavutil/hwcontext.c:373
+#8  0x000000000800114f in set_hwframe_ctx (ctx=0x8404be0, hw_device_ctx=0x8404770) at doc/examples/hjkjpg_encode.c:60
+#9  0x0000000008001722 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:156
 */
-static int hjk_Init(int size)
+static int hj_CtxPopCurrent(HJcontext *dummy)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
-}
-
-static int hjk_DeviceGetCount(int *nb_devices)
-{
-    printf("%d %s \n", __LINE__, __FUNCTION__);
-
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
 /*
-#0  hjk_MemFree (data=0x7ffff8690010) at libavutil/../libavcodec/hjk_api.c:85
-#1  0x00007ffffd78b2cc in hjk_buffer_free (opaque=0x8406420, data=0x7ffff8690010 "") at libavutil/hwcontext_hjk.c:85
-#2  0x00007ffffd777a0d in buffer_pool_free (pool=0x8406520) at libavutil/buffer.c:264
-#3  0x00007ffffd777ace in av_buffer_pool_uninit (ppool=0x8406490) at libavutil/buffer.c:285
-#4  0x00007ffffd789aa9 in hwframe_ctx_free (opaque=0x0, data=0x8406420 "\200<\237\375\377\177") at libavutil/hwcontext.c:229
-#5  0x00007ffffd777473 in buffer_replace (dst=0x8404fd0, src=0x0) at libavutil/buffer.c:120
-#6  0x00007ffffd7774c6 in av_buffer_unref (buf=0x8404fd0) at libavutil/buffer.c:130
-#7  0x00007ffffe3ad95b in avcodec_close (avctx=0x8404be0) at libavcodec/utils.c:1126
-#8  0x00007ffffe21062b in avcodec_free_context (pavctx=0x7ffffffedf48) at libavcodec/options.c:178
-#9  0x0000000008001bea in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:220
+#0  hj_CtxPushCurrent (hj_context=0x8404bc0) at libavutil/../libavcodec/hj_api.c:8
+#1  0x00007ffffd78b3ac in hj_pool_alloc (opaque=0x8406420, size=3110400) at libavutil/hwcontext_hjk.c:102
+#2  0x00007ffffd777b96 in pool_alloc_buffer (pool=0x8406520) at libavutil/buffer.c:312
+#3  0x00007ffffd777cf2 in av_buffer_pool_get (pool=0x8406520) at libavutil/buffer.c:349
+#4  0x00007ffffd78b639 in hj_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
+#5  0x00007ffffd78a523 in av_hwframe_get_buffer (hwframe_ref=0x8406500, frame=0x8406630, flags=0) at libavutil/hwcontext.c:521
+#6  0x00007ffffd789e50 in hwframe_pool_prealloc (ref=0x8406500) at libavutil/hwcontext.c:320
+#7  0x00007ffffd78a042 in av_hwframe_ctx_init (ref=0x8406500) at libavutil/hwcontext.c:373
+#8  0x000000000800114f in set_hwframe_ctx (ctx=0x8404be0, hw_device_ctx=0x8404770) at doc/examples/hjkjpg_encode.c:60
+#9  0x0000000008001722 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:156
 */
-static int hjk_MemFree(HJdeviceptr data)
+static int hj_CtxPushCurrent(HJcontext hj_context)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL != data) {
-        free(data);
-    }
-
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
 /*
 alloc memory for dst AFrame
 
-#0  hjk_MemAlloc (data=0x7ffffffedcb8, size=3317760) at libavutil/../libavcodec/hjk_api.c:92
-#1  0x00007ffffd78b3af in hjk_pool_alloc (opaque=0x8406420, size=3317760) at libavutil/hwcontext_hjk.c:106
+#0  hj_MemAlloc (data=0x7ffffffedcb8, size=3317760) at libavutil/../libavcodec/hj_api.c:92
+#1  0x00007ffffd78b3af in hj_pool_alloc (opaque=0x8406420, size=3317760) at libavutil/hwcontext_hjk.c:106
 #2  0x00007ffffd777b4c in pool_alloc_buffer (pool=0x8406520) at libavutil/buffer.c:312
 #3  0x00007ffffd777ca8 in av_buffer_pool_get (pool=0x8406520) at libavutil/buffer.c:349
-#4  0x00007ffffd78b5ef in hjk_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
+#4  0x00007ffffd78b5ef in hj_get_buffer (ctx=0x8406420, frame=0x8406630) at libavutil/hwcontext_hjk.c:155
 #5  0x00007ffffd78a4d9 in av_hwframe_get_buffer (hwframe_ref=0x8406500, frame=0x8406630, flags=0) at libavutil/hwcontext.c:521
 #6  0x00007ffffd789e06 in hwframe_pool_prealloc (ref=0x8406500) at libavutil/hwcontext.c:320
 #7  0x00007ffffd789ff8 in av_hwframe_ctx_init (ref=0x8406500) at libavutil/hwcontext.c:373
 #8  0x000000000800114f in set_hwframe_ctx (ctx=0x8404be0, hw_device_ctx=0x8404770) at doc/examples/hjkjpg_encode.c:60
 #9  0x0000000008001722 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:156
 */
-static int hjk_MemAlloc(HJdeviceptr *data, int size)
+static int hj_MemAlloc(HJdeviceptr *data, int size)
 {
     printf("%d %s size=%d\n", __LINE__, __FUNCTION__, size);
 
@@ -172,16 +136,16 @@ static int hjk_MemAlloc(HJdeviceptr *data, int size)
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
 /*
-#0  hjk_Memcpy2DAsync (cpy=0x7ffffffede90, stream=0x0) at libavutil/../libavcodec/hjk_api.c:125
-#1  0x00007ffffd78bc0e in hjk_transfer_data_to (ctx=0x8406420, dst=0x8408f70, src=0x8409230) at libavutil/hwcontext_hjk.c:266
+#0  hj_Memcpy2DAsync (cpy=0x7ffffffede90, stream=0x0) at libavutil/../libavcodec/hj_api.c:125
+#1  0x00007ffffd78bc0e in hj_transfer_data_to (ctx=0x8406420, dst=0x8408f70, src=0x8409230) at libavutil/hwcontext_hjk.c:266
 #2  0x00007ffffd78a334 in av_hwframe_transfer_data (dst=0x8408f70, src=0x8409230, flags=0) at libavutil/hwcontext.c:460
 #3  0x0000000008001a47 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:194
 */
-static int hjk_Memcpy2DAsync(HJK_MEMCPY2D *cpy, HJstream stream)
+static int hj_Memcpy2DAsync(HJK_MEMCPY2D *cpy, HJstream stream)
 {
     int i = 0;
 
@@ -196,38 +160,113 @@ static int hjk_Memcpy2DAsync(HJK_MEMCPY2D *cpy, HJstream stream)
                (uint8_t *)cpy->srcHost + i * cpy->srcPitch, cpy->WidthInBytes);
     }
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-static int hjk_StreamSynchronize(HJstream stream)
+static int hj_StreamSynchronize(HJstream stream)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    return HJK_SUCCESS;
 }
 
-static int hjk_check_GetErrorName(HJKresult error, const char** pstr)
+/*
+#0  hj_MemFree (data=0x7ffff8690010) at libavutil/../libavcodec/hj_api.c:85
+#1  0x00007ffffd78b2cc in hj_buffer_free (opaque=0x8406420, data=0x7ffff8690010 "") at libavutil/hwcontext_hjk.c:85
+#2  0x00007ffffd777a0d in buffer_pool_free (pool=0x8406520) at libavutil/buffer.c:264
+#3  0x00007ffffd777ace in av_buffer_pool_uninit (ppool=0x8406490) at libavutil/buffer.c:285
+#4  0x00007ffffd789aa9 in hwframe_ctx_free (opaque=0x0, data=0x8406420 "\200<\237\375\377\177") at libavutil/hwcontext.c:229
+#5  0x00007ffffd777473 in buffer_replace (dst=0x8404fd0, src=0x0) at libavutil/buffer.c:120
+#6  0x00007ffffd7774c6 in av_buffer_unref (buf=0x8404fd0) at libavutil/buffer.c:130
+#7  0x00007ffffe3ad95b in avcodec_close (avctx=0x8404be0) at libavcodec/utils.c:1126
+#8  0x00007ffffe21062b in avcodec_free_context (pavctx=0x7ffffffedf48) at libavcodec/options.c:178
+#9  0x0000000008001bea in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:220
+*/
+static int hj_MemFree(HJdeviceptr data)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    return HJK_ENC_SUCCESS;
+    if (NULL != data) {
+        free(data);
+    }
+
+    return HJK_SUCCESS;
 }
 
-static HjkFunctions hjk_functions = {
-    .hjCtxPushCurrent = hjk_CtxPushCurrent,
-    .hjCtxPopCurrent = hjk_CtxPopCurrent,
-    .hjDeviceGet = hjk_DeviceGet,
-    .hjDeviceGetName = hjk_DeviceGetName,
-    .hjDeviceComputeCapability = hjk_DeviceComputeCapability,
-    .hjCtxCreate = hjk_CtxCreate,
-    .hjCtxDestroy = hjk_CtxDestroy,
-    .hjInit = hjk_Init,
-    .hjDeviceGetCount = hjk_DeviceGetCount,
-    .hjMemFree = hjk_MemFree,
-    .hjMemAlloc = hjk_MemAlloc,
-    .hjMemcpy2DAsync = hjk_Memcpy2DAsync,
-    .hjStreamSynchronize = hjk_StreamSynchronize,
-    .hjkGetErrorName = hjk_check_GetErrorName,
+static int hj_CtxDestroy(HJcontext hj_context_internal)
+{
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    if (NULL == hj_context_internal) {
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
+
+    free(hj_context_internal);
+
+    return HJK_SUCCESS;
+}
+
+static const struct {
+    HJresult hjerr; /* hj internal error */
+    int         ff_averr; /* map ffmpeg error */
+    const char *desc;
+} hjenc_internal_errors[] = {
+    { HJK_SUCCESS,                      0,                "success"                  },
+    { HJK_FAILED,         -1/*AVERROR(ENOENT)*/,  "failed"         },
+};
+
+static HJresult hj_GetErrorName(HJresult error, const char** pstr)
+{
+    int i;
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+
+    for (i = 0; i < (sizeof(hjenc_internal_errors) / sizeof(hjenc_internal_errors[0])); i++) {
+        if (hjenc_internal_errors[i].hjerr == error) {
+            if (pstr)
+                *pstr = hjenc_internal_errors[i].desc;
+            return hjenc_internal_errors[i].ff_averr;
+        }
+    }
+    if (pstr)
+        *pstr= "unknown internal error name";
+
+    return HJK_SUCCESS;
+}
+
+static HJresult hj_GetErrorString(HJresult error, const char** pstr)
+{
+    int i;
+    printf("%d %s \n", __LINE__, __FUNCTION__);
+    for (i = 0; i < (sizeof(hjenc_internal_errors) / sizeof(hjenc_internal_errors[0])); i++) {
+        if (hjenc_internal_errors[i].hjerr == error) {
+            if (pstr)
+                *pstr = hjenc_internal_errors[i].desc;
+            return hjenc_internal_errors[i].ff_averr;
+        }
+    }
+    if (pstr)
+        *pstr= "unknown internal error string";
+
+    return HJK_SUCCESS;
+}
+
+static HjkFunctions hj_functions = {
+    .hjInit = hj_Init,
+    .hjDeviceGetCount = hj_DeviceGetCount,
+    .hjDeviceGet = hj_DeviceGet,
+    .hjDeviceGetName = hj_DeviceGetName,
+    .hjDeviceComputeCapability = hj_DeviceComputeCapability,
+    .hjCtxCreate = hj_CtxCreate,
+    .hjCtxPopCurrent = hj_CtxPopCurrent,
+    .hjCtxPushCurrent = hj_CtxPushCurrent,
+    .hjMemAlloc = hj_MemAlloc,
+    .hjMemcpy2DAsync = hj_Memcpy2DAsync,
+    .hjStreamSynchronize = hj_StreamSynchronize,
+    .hjMemFree = hj_MemFree,
+    .hjCtxDestroy = hj_CtxDestroy,
+    .hjGetErrorName = hj_GetErrorName,
+    .hjGetErrorString = hj_GetErrorString,
 };
 
 
@@ -235,7 +274,7 @@ int hjk_load_functions(HjkFunctions **hjk_dl, void *avctx)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    *hjk_dl = &hjk_functions;
+    *hjk_dl = &hj_functions;
 
     return HJK_ENC_SUCCESS;
 }
@@ -379,8 +418,8 @@ static int hjk_EncInitializeEncoder(void *handle, HJK_ENC_INITIALIZE_PARAMS *ini
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncSetIOCudaStreams(void *handle, HJstream *cu_stream,
-							  HJstream *cu_stream1)
+static int hjk_EncSetIOHjkStreams(void *handle, HJstream *hj_stream,
+							  HJstream *hj_stream1)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -768,7 +807,7 @@ static HJK_ENCODE_API_FUNCTION_LIST hjk_encode_api_function_list_member = {
     .hjkEncGetEncodePresetConfigEx = hjk_EncGetEncodePresetConfigEx,
     .hjkEncGetEncodePresetConfig = hjk_EncGetEncodePresetConfig,
     .hjkEncInitializeEncoder = hjk_EncInitializeEncoder,
-    .hjkEncSetIOCudaStreams = hjk_EncSetIOCudaStreams,
+    .hjkEncSetIOHjkStreams = hjk_EncSetIOHjkStreams,
     .hjkEncCreateInputBuffer = hjk_EncCreateInputBuffer,
     .hjkEncCreateBitstreamBuffer = hjk_EncCreateBitstreamBuffer,
     .hjkEncGetSequenceParams = hjk_EncGetSequenceParams,

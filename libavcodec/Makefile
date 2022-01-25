@@ -125,6 +125,7 @@ OBJS-$(CONFIG_MPEGVIDEOENC)            += mpegvideo_enc.o mpeg12data.o  \
                                           mpegvideoencdsp.o
 OBJS-$(CONFIG_MSS34DSP)                += mss34dsp.o
 OBJS-$(CONFIG_NVENC)                   += nvenc.o
+OBJS-$(CONFIG_HJKENC)                  += ffhjkcodec/hjk_api.o hjkenc.o
 OBJS-$(CONFIG_PIXBLOCKDSP)             += pixblockdsp.o
 OBJS-$(CONFIG_QPELDSP)                 += qpeldsp.o
 OBJS-$(CONFIG_QSV)                     += qsv.o
@@ -149,7 +150,8 @@ OBJS-$(CONFIG_VP8DSP)                  += vp8dsp.o
 OBJS-$(CONFIG_V4L2_M2M)                += v4l2_m2m.o v4l2_context.o v4l2_buffers.o v4l2_fmt.o
 OBJS-$(CONFIG_WMA_FREQS)               += wma_freqs.o
 OBJS-$(CONFIG_WMV2DSP)                 += wmv2dsp.o
-OBJS-$(CONFIG_MJPEG_HJKENC_ENCODER)    += ffhjkcodec/hjk_api.o hjkenc.o hjkenc_mjpeg.o
+OBJS-$(CONFIG_MJPEG_HJKENC_ENCODER)    += hjkenc_mjpeg.o
+$(warning chenwenmin CONFIG_HJKENC=$(CONFIG_HJKENC))
 
 # decoders/encoders
 OBJS-$(CONFIG_ZERO12V_DECODER)         += 012v.o

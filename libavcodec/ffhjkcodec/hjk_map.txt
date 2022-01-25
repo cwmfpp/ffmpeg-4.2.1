@@ -59,7 +59,7 @@ typedef struct HjkencSurface
                                                     int height;
                                                     int pitch;
                                                     void *resourceToRegister; /*  = frame->data[0] <-- HjkFunctions(hjMemAlloc)*/
-					                                int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_CUDADEVICEPTR
+					                                int resourceType; // HJK_ENC_INPUT_RESOURCE_TYPE_HJKDEVICEPTR
 struct {                                                              // HJK_ENC_INPUT_RESOURCE_TYPE_DIRECTX
 	void *ptr; /* = frame->data[0] */               intptr_t subResourceIndex;
 	int ptr_index;                                  HJK_ENC_BUFFER_FORMAT bufferFormat;

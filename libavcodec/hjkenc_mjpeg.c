@@ -44,7 +44,6 @@ static const AVOption options[] = {
     { "main",         "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = HJK_ENC_MJPEG_PROFILE_MAIN },      0, 0, VE, "profile" },
     { "high",         "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = HJK_ENC_MJPEG_PROFILE_HIGH },      0, 0, VE, "profile" },
     { "high444p",     "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = HJK_ENC_MJPEG_PROFILE_HIGH_444P }, 0, 0, VE, "profile" },
-#ifdef ABCD
     { "level",        "Set the encoding level restriction", OFFSET(level),        AV_OPT_TYPE_INT,   { .i64 = HJK_ENC_LEVEL_AUTOSELECT }, HJK_ENC_LEVEL_AUTOSELECT, HJK_ENC_LEVEL_MJPEG_51, VE, "level" },
     { "auto",         "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = HJK_ENC_LEVEL_AUTOSELECT },    0, 0, VE, "level" },
     { "1",            "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = HJK_ENC_LEVEL_MJPEG_1 },        0, 0, VE, "level" },
@@ -139,7 +138,6 @@ static const AVOption options[] = {
     { "middle",       "",                                   0,                    AV_OPT_TYPE_CONST, { .i64 = 2 }, 0, 0,       VE, "b_ref_mode" },
 #endif
     { "a53cc",        "Use A53 Closed Captions (if available)", OFFSET(a53_cc),   AV_OPT_TYPE_BOOL,  { .i64 = 1 }, 0, 1, VE },
-#endif /*ABCD*/
     { NULL }
 };
 
@@ -174,7 +172,7 @@ static const AVClass hjkenc_class = {
 
 AVCodec ff_hjkenc_encoder = {
     .name           = "hjkenc",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("XXXHJK HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = hjkenc_old_init,
@@ -203,7 +201,7 @@ static const AVClass hjkenc_mjpeg_class = {
 
 AVCodec ff_hjkenc_mjpeg_encoder = {
     .name           = "hjkenc_mjpeg",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("XXXHJK HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = hjkenc_old_init,
@@ -232,7 +230,7 @@ static const AVClass mjpeg_hjkenc_class = {
 
 AVCodec ff_mjpeg_hjkenc_encoder = {
     .name           = "mjpeg_hjkenc",
-    .long_name      = NULL_IF_CONFIG_SMALL("NVIDIA HJKENC MJPEG encoder"),
+    .long_name      = NULL_IF_CONFIG_SMALL("XXXHJK HJKENC MJPEG encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MJPEG,
     .init           = ff_hjkenc_encode_init,

@@ -30,7 +30,7 @@
  * FFmpeg internal API for HJK.
  */
 
-struct AVCUDADeviceContextInternal {
+struct AVHJKDeviceContextInternal {
     HjkFunctions *hjk_dl;
     int is_allocated;
 };

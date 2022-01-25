@@ -1,6 +1,6 @@
 /*
- * H.264/HEVC hardware encoding using nvidia hjkenc
- * Copyright (c) 2016 Timo Rothenpieler <timo@rothenpieler.org>
+ * MJPEG/HEVC hardware encoding using xxxhjk hjkenc
+ * Copyright (c) 2022 
  *
  * This file is part of FFmpeg.
  *
@@ -33,7 +33,7 @@
 #include "internal.h"
 #include "hjk_log.h"
 
-#define CHECK_CU(x) FF_HJK_CHECK_DL(avctx, dl_fn->hjk_dl, x)
+#define CHECK_HJ(x) FF_HJK_CHECK_DL(avctx, dl_fn->hjk_dl, x)
 
 #define HJKENC_CAP 0x30
 #define IS_CBR(rc) (rc == HJK_ENC_PARAMS_RC_CBR ||             \
@@ -64,7 +64,7 @@ const enum AVPixelFormat ff_hjkenc_pix_fmts[] = {
                             pix_fmt == AV_PIX_FMT_YUV444P16)
 
 static const struct {
-    HJKENCSTATUS nverr;
+    HJKENCSTATUS hjerr;
     int         averr;
     const char *desc;
 } hjkenc_errors[] = {
@@ -100,7 +100,7 @@ static int hjkenc_map_error(HJKENCSTATUS err, const char **desc)
 {
     int i;
     for (i = 0; i < FF_ARRAY_ELEMS(hjkenc_errors); i++) {
-        if (hjkenc_errors[i].nverr == err) {
+        if (hjkenc_errors[i].hjerr == err) {
             if (desc)
                 *desc = hjkenc_errors[i].desc;
             return hjkenc_errors[i].averr;
@@ -148,7 +148,7 @@ static void hjkenc_print_driver_requirement(AVCodecContext *avctx, int level)
     const char *minver = "378.13";
 # endif
 #endif
-    av_log(avctx, level, "The minimum required Nvidia driver for hjkenc is %s or newer\n", minver);
+    av_log(avctx, level, "The minimum required Xxxhjk driver for hjkenc is %s or newer\n", minver);
 }
 
 static av_cold int hjkenc_load_libraries(AVCodecContext *avctx)
@@ -203,7 +203,7 @@ static int hjkenc_push_context(AVCodecContext *avctx)
     if (ctx->d3d11_device)
         return 0;
 
-    return CHECK_CU(dl_fn->hjk_dl->hjCtxPushCurrent(ctx->hjk_context));
+    return CHECK_HJ(dl_fn->hjk_dl->hjCtxPushCurrent(ctx->hjk_context));
 }
 
 static int hjkenc_pop_context(AVCodecContext *avctx)
@@ -215,7 +215,7 @@ static int hjkenc_pop_context(AVCodecContext *avctx)
     if (ctx->d3d11_device)
         return 0;
 
-    return CHECK_CU(dl_fn->hjk_dl->hjCtxPopCurrent(&dummy));
+    return CHECK_HJ(dl_fn->hjk_dl->hjCtxPopCurrent(&dummy));
 }
 
 static av_cold int hjkenc_open_session(AVCodecContext *avctx)
@@ -414,15 +414,15 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
     if (ctx->device == LIST_DEVICES)
         loglevel = AV_LOG_INFO;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceGet(&hj_device, idx));
+    ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceGet(&hj_device, idx));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceGetName(name, sizeof(name), hj_device));
+    ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceGetName(name, sizeof(name), hj_device));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjDeviceComputeCapability(&major, &minor, hj_device));
+    ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceComputeCapability(&major, &minor, hj_device));
     if (ret < 0)
         return ret;
 
@@ -435,7 +435,7 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
     if (ctx->device != idx && ctx->device != ANY_DEVICE)
         return -1;
 
-    ret = CHECK_CU(dl_fn->hjk_dl->hjCtxCreate(&ctx->hjk_context_internal, 0, hj_device));
+    ret = CHECK_HJ(dl_fn->hjk_dl->hjCtxCreate(&ctx->hjk_context_internal, 0, hj_device));
     if (ret < 0)
         goto fail;
 
@@ -468,7 +468,7 @@ fail3:
         return ret;
 
 fail2:
-    CHECK_CU(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
+    CHECK_HJ(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
     ctx->hjk_context_internal = NULL;
 
 fail:
@@ -548,10 +548,10 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
     } else {
         int i, nb_devices = 0;
 
-        if (CHECK_CU(dl_fn->hjk_dl->hjInit(0)) < 0)
+        if (CHECK_HJ(dl_fn->hjk_dl->hjInit(0)) < 0)
             return AVERROR_UNKNOWN;
 
-        if (CHECK_CU(dl_fn->hjk_dl->hjDeviceGetCount(&nb_devices)) < 0)
+        if (CHECK_HJ(dl_fn->hjk_dl->hjDeviceGetCount(&nb_devices)) < 0)
             return AVERROR_UNKNOWN;
 
         if (!nb_devices) {
@@ -1451,7 +1451,7 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
     ctx->hjkencoder = NULL;
 
     if (ctx->hjk_context_internal)
-        CHECK_CU(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
+        CHECK_HJ(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
     ctx->hjk_context = ctx->hjk_context_internal = NULL;
 
 #if CONFIG_D3D11VA

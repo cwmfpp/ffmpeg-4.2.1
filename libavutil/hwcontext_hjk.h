@@ -35,10 +35,7 @@
  * AVBufferRefs whose data pointer is a HJdeviceptr.
  */
 
-typedef struct AVHJKDeviceContextInternal {
-    HjkFunctions *hjk_dl;
-    int is_allocated;
-} AVHJKDeviceContextInternal;
+typedef struct AVHJKDeviceContextInternal AVHJKDeviceContextInternal;
 
 /**
  * This struct is allocated as AVHWDeviceContext.hwctx

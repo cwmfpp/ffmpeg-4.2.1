@@ -20,56 +20,45 @@
 #ifndef AVUTIL_HJK_CHECK_H
 #define AVUTIL_HJK_CHECK_H
 
-typedef int HJKresult;
-#define HJKAPI 
-
-typedef HJKresult HJKAPI hjk_check_GetErrorName_cb(HJKresult error, const char** pstr);
-typedef HJKresult HJKAPI hjk_check_GetErrorString(HJKresult error, const char** pstr);
+typedef HJresult HJKAPI hjk_check_GetErrorName(HJresult error, const char** pstr);
+typedef HJresult HJKAPI hjk_check_GetErrorString(HJresult error, const char** pstr);
 
 /**
  * Wrap a HJK function call and print error information if it fails.
  */
 static inline int ff_hjk_check(void *avctx,
-                                void *hjkGetErrorName_fn, void *hjkGetErrorString_fn,
-                                HJKresult err, const char *func)
+                                void *hjGetErrorName_fn, void *hjGetErrorString_fn,
+                                HJresult err, const char *func)
 {
-    #define HJK_SUCCESS 0
     const char *err_name;
-
-    av_log(avctx, AV_LOG_TRACE, "Calling %s\n", func);
-
     const char *err_string;
 
+    av_log(avctx, AV_LOG_TRACE, "Calling %s\n", func);
 
     if (err == HJK_SUCCESS)
         return 0;
 
-    av_log(avctx, AV_LOG_ERROR, "%s failed", func);
-    ((hjk_check_GetErrorName_cb *)hjkGetErrorName_fn)(err, &err_name);
-    av_log(avctx, AV_LOG_ERROR, " -> %s", err_name);
-    av_log(avctx, AV_LOG_ERROR, "\n");
-    return AVERROR_EXTERNAL;
-#ifdef ABCDE
-    ((hjk_check_GetErrorString *)hjkGetErrorString_fn)(err, &err_string);
+    ((hjk_check_GetErrorName *)hjGetErrorName_fn)(err, &err_name);
+    ((hjk_check_GetErrorString *)hjGetErrorString_fn)(err, &err_string);
 
+    av_log(avctx, AV_LOG_ERROR, "%s failed", func);
     if (err_name && err_string)
         av_log(avctx, AV_LOG_ERROR, " -> %s: %s", err_name, err_string);
     av_log(avctx, AV_LOG_ERROR, "\n");
 
     return AVERROR_EXTERNAL;
-#endif /* ABCDE */
 }
 
 /**
  * Convenience wrapper for ff_hjk_check when directly linking libhjk.
  */
 
-#define FF_HJK_CHECK(avclass, x) ff_hjk_check(avclass, hjkGetErrorName, hjkGetErrorString, (x), #x)
+#define FF_HJK_CHECK(avclass, x) ff_hjk_check(avclass, hjGetErrorName, hjGetErrorString, (x), #x)
 
 /**
  * Convenience wrapper for ff_hjk_check when dynamically loading hjk symbols.
  */
 
-#define FF_HJK_CHECK_DL(avclass, hjkdl, x) ff_hjk_check(avclass, hjkdl->hjkGetErrorName, /*hjkdl->hjkGetErrorString*/ NULL, (x), #x)
+#define FF_HJK_CHECK_DL(avclass, hjdl, x) ff_hjk_check(avclass, hjdl->hjGetErrorName, hjdl->hjGetErrorString, (x), #x)
 
 #endif /* AVUTIL_HJK_CHECK_H */
