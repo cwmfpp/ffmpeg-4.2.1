@@ -14,6 +14,12 @@ ffmpeg
 export PKG_CONFIG_PATH=/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/lib/pkgconfig:$PKG_CONFIG_PATH
 ./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags=-g --disable-optimizations --disable-asm --disable-stripping --enable-doc --enable-libx264
 
+关闭hjkenc
+--disable-hjkenc
+
+关闭hjkdec
+--disable-hjkdec
+
 make
 make install
 

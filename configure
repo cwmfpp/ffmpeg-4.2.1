@@ -340,6 +340,8 @@ External library support:
   --disable-vaapi          disable Video Acceleration API (mainly Unix/Intel) code [autodetect]
   --disable-vdpau          disable Nvidia Video Decode and Presentation API for Unix code [autodetect]
   --disable-videotoolbox   disable VideoToolbox code [autodetect]
+  --disable-hjkdec         disable Hjk video decoding acceleration (via hwaccel) [autodetect]
+  --disable-hjkenc         disable Hjk video encoding code [autodetect]
 
 Toolchain options:
   --arch=ARCH              select architecture [$arch]
@@ -2915,6 +2917,8 @@ hevc_videotoolbox_hwaccel_deps="videotoolbox"
 hevc_videotoolbox_hwaccel_select="hevc_decoder"
 mjpeg_nvdec_hwaccel_deps="nvdec"
 mjpeg_nvdec_hwaccel_select="mjpeg_decoder"
+mjpeg_hjkdec_hwaccel_deps="hjkdec"
+mjpeg_hjkdec_hwaccel_select="mjpeg_decoder"
 mjpeg_vaapi_hwaccel_deps="vaapi"
 mjpeg_vaapi_hwaccel_select="mjpeg_decoder"
 mpeg_xvmc_hwaccel_deps="xvmc"
@@ -3046,7 +3050,7 @@ mjpeg_qsv_encoder_deps="libmfx"
 mjpeg_qsv_encoder_select="qsvenc"
 mjpeg_vaapi_encoder_deps="VAEncPictureParameterBufferJPEG"
 mjpeg_vaapi_encoder_select="cbs_jpeg jpegtables vaapi_encode"
-mjpeg_hjkenc_encoder_deps="libx264"
+mjpeg_hjkenc_encoder_deps="hjkenc"
 mpeg1_cuvid_decoder_deps="cuvid"
 mpeg1_v4l2m2m_decoder_deps="v4l2_m2m mpeg1_v4l2_m2m"
 mpeg2_crystalhd_decoder_select="crystalhd"
