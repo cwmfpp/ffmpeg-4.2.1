@@ -1833,6 +1833,7 @@ HWACCEL_AUTODETECT_LIBRARY_LIST="
     xvmc
     hjk
     hjkenc
+    hjkdec
 "
 
 # catchall list of things that require external libs to link

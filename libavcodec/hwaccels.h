@@ -38,6 +38,7 @@ extern const AVHWAccel ff_hevc_vaapi_hwaccel;
 extern const AVHWAccel ff_hevc_vdpau_hwaccel;
 extern const AVHWAccel ff_hevc_videotoolbox_hwaccel;
 extern const AVHWAccel ff_mjpeg_nvdec_hwaccel;
+extern const AVHWAccel ff_mjpeg_hjkdec_hwaccel;
 extern const AVHWAccel ff_mjpeg_vaapi_hwaccel;
 extern const AVHWAccel ff_mpeg1_nvdec_hwaccel;
 extern const AVHWAccel ff_mpeg1_vdpau_hwaccel;

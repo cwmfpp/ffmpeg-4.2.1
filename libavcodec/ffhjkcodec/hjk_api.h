@@ -28,6 +28,8 @@ extern "C" {
 
 typedef enum {
     HJK_SUCCESS,
+    HJK_ENOMEM,
+    HJK_EINVALID,
     HJK_FAILED,
 } HJresult;
 
@@ -529,8 +531,8 @@ typedef enum {
 }HJ_MEMORYTYPE;
 
 typedef struct _HJK_MEMCPY2D {
-            int srcMemoryType;
-            int dstMemoryType;
+            HJ_MEMORYTYPE srcMemoryType;
+            HJ_MEMORYTYPE dstMemoryType;
             HJdeviceptr srcDevice;
             uint8_t *dstHost;
             uint8_t *srcHost;
@@ -601,6 +603,91 @@ int hjkenc_load_functions(HjkencFunctions **hjkenc_dl, void *avctx);
 void hjkenc_free_functions(HjkencFunctions **hjkenc_dl);
 void hjk_free_functions(HjkFunctions **hjk_dl);
 
+/*hjk dec start*/
+
+typedef struct _HJVIDPICPARAMS {
+    int nBitstreamDataLen;
+    uint8_t *pBitstreamData;
+    int nNumSlices;
+    unsigned *pSliceDataOffsets;
+    int PicWidthInMbs; /* 16 */
+    int FrameHeightInMbs; /* 16 , PicWidthInMbs * FrameHeightInMbs = 256 */
+    int CurrPicIdx;
+    int intra_pic_flag;
+    int ref_pic_flag;
+} HJVIDPICPARAMS;
+
+typedef void * HJvideodecoder;
+
+typedef struct _HJVIDDECODECREATEINFO {
+    int ulWidth;
+    int ulHeight;
+    int ulTargetWidth;
+    int ulTargetHeight;
+    int bitDepthMinus8;
+    int OutputFormat;
+    int CodecType;
+    int ChromaFormat;
+    int ulNumDecodeSurfaces;
+    int ulNumOutputSurfaces;
+} HJVIDDECODECREATEINFO;
+
+typedef struct _HJVIDPROCPARAMS {
+    int progressive_frame;
+    HJstream output_stream;
+} HJVIDPROCPARAMS;
+
+typedef struct _HJVIDDECODECAPS {
+    int eCodecType;
+    int eChromaFormat;
+    int nBitDepthMinus8;
+    int bIsSupported;
+    int nMaxMBCount;
+    int nMinWidth;
+    int nMaxWidth;
+    int nMinHeight;
+    int nMaxHeight;
+} HJVIDDECODECAPS;
+
+typedef enum {
+    hjkVideoCodec_H264,
+    hjkVideoCodec_HEVC,
+    hjkVideoCodec_JPEG,
+    hjkVideoCodec_MPEG1,
+    hjkVideoCodec_MPEG2,
+    hjkVideoCodec_MPEG4,
+    hjkVideoCodec_VC1,
+    hjkVideoCodec_VP8,
+    hjkVideoCodec_VP9,
+} HJK_VIDEO_CODEC_TYPE;
+
+typedef enum {
+    hjkVideoChromaFormat_420,
+    hjkVideoChromaFormat_422,
+    hjkVideoChromaFormat_444,
+} HJK_VIDEO_CHROMA_FORMAT;
+
+typedef enum {
+    hjkVideoSurfaceFormat_NV12 = 0,
+    hjkVideoSurfaceFormat_P016 = 1,
+} hjkVideoSurfaceFormat;
+
+typedef struct _HjvidFunctions {
+    int (*hjvidGetDecoderCaps)(HJVIDDECODECAPS *caps);
+    int (*hjvidDestroyDecoder)(HJvideodecoder decoder);
+    int (*hjvidCreateDecoder)(HJvideodecoder *decoder,
+                              HJVIDDECODECREATEINFO *params);
+    int (*hjvidMapVideoFrame)(HJvideodecoder decoder, unsigned int idx,
+                              HJdeviceptr *devptr, unsigned int *pitch,
+                              HJVIDPROCPARAMS *vpp);
+    int (*hjvidUnmapVideoFrame)(HJvideodecoder decoder, HJdeviceptr devptr);
+    int (*hjvidDecodePicture)(HJvideodecoder decoder,
+                              HJVIDPICPARAMS *pic_params);
+} HjvidFunctions;
+
+void hjvid_free_functions(HjvidFunctions **hvdl);
+int hjvid_load_functions(HjvidFunctions **hvdl, void *logctx);
+/*hjk dec end*/
 #ifdef __cplusplus
 }
 #endif

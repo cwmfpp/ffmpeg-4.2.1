@@ -684,6 +684,9 @@ int ff_mjpeg_decode_sof(MJpegDecodeContext *s)
 #if CONFIG_MJPEG_VAAPI_HWACCEL
                 AV_PIX_FMT_VAAPI,
 #endif
+#if CONFIG_MJPEG_HJKDEC_HWACCEL
+                AV_PIX_FMT_HJK,
+#endif
                 s->avctx->pix_fmt,
                 AV_PIX_FMT_NONE,
             };
@@ -2823,6 +2826,9 @@ AVCodec ff_mjpeg_decoder = {
 #endif
 #if CONFIG_MJPEG_VAAPI_HWACCEL
                         HWACCEL_VAAPI(mjpeg),
+#endif
+#if CONFIG_MJPEG_HJKDEC_HWACCEL
+                        HWACCEL_HJKDEC(mjpeg),
 #endif
                         NULL
                     },
