@@ -32,19 +32,19 @@ static int hj_DeviceGet(HJdevice * hj_device, int idx)
     return HJK_SUCCESS;
 }
 
-static int hj_DeviceGetName(char *name, int name_size, HJdevice hj_device)
+static int hj_DeviceGetName(char *dev_name, int dev_name_size, HJdevice hj_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == name || name_size <= 0) {
+    if (NULL == dev_name || dev_name_size <= 0) {
         return HJK_ENC_ERR_INVALID_PARAM;
     }
-    snprintf(name, name_size - 1, "Hello HJK Device");
+    snprintf(dev_name, dev_name_size - 1, "Hello HJK Device");
 
     return HJK_SUCCESS;
 }
 
-static int hj_DeviceComputeCapability(int *major, int *minor,
+static int hj_DeviceComputeCapability(int *dev_major, int *dev_minor,
 								  HJdevice hj_device)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
@@ -177,10 +177,10 @@ static int hj_Memcpy2DAsync(HJK_MEMCPY2D *cpy, HJstream stream)
     } else if (HJ_MEMORYTYPE_DEVICE == cpy->srcMemoryType &&
                HJ_MEMORYTYPE_HOST == cpy->dstMemoryType) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
-        /* src decoder data */
+        /* src hj_video_decoder data */
         /* copy decode data to host*/
         /* cpy->srcDevice = devptr; 
-        hj_vidMapVideoFrame(HJvideodecoder decoder, unsigned int idx,
+        hj_vidMapVideoFrame(HJvideodecoder hj_video_decoder, unsigned int idx,
 						  HJdeviceptr *devptr, unsigned int *pitch,*/
         printf("%d %s cpy->Height=%d\n", __LINE__, __FUNCTION__, cpy->Height);
         for (i = 0; i < cpy->Height; i++) {
@@ -215,12 +215,12 @@ static int hj_StreamSynchronize(HJstream stream)
 #8  0x00007ffffe21062b in avcodec_free_context (pavctx=0x7ffffffedf48) at libavcodec/options.c:178
 #9  0x0000000008001bea in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:220
 */
-static int hj_MemFree(HJdeviceptr data)
+static int hj_MemFree(HJdeviceptr dev_data)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL != data) {
-        free(data);
+    if (NULL != dev_data) {
+        free(dev_data);
     }
 
     return HJK_SUCCESS;
@@ -249,13 +249,13 @@ static const struct {
     { HJK_FAILED,         -1/*AVERROR(ENOENT)*/,  "failed"         },
 };
 
-static HJresult hj_GetErrorName(HJresult error, const char** pstr)
+static HJresult hj_GetErrorName(HJresult hj_error, const char** pstr)
 {
     int i;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
     for (i = 0; i < (sizeof(hjenc_internal_errors) / sizeof(hjenc_internal_errors[0])); i++) {
-        if (hjenc_internal_errors[i].hjerr == error) {
+        if (hjenc_internal_errors[i].hjerr == hj_error) {
             if (pstr)
                 *pstr = hjenc_internal_errors[i].desc;
             return hjenc_internal_errors[i].ff_averr;
@@ -329,7 +329,7 @@ typedef struct _HjkEncoderInfo {
 /* HJK_ENCODE_API_FUNCTION_LIST start */
 /* p1 open hw, open encoder*/
 static int hjk_EncOpenEncodeSessionEx(
-	HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS *open_params, void **handle)
+	HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS *open_params, void **hj_enc_handle)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
@@ -343,12 +343,12 @@ static int hjk_EncOpenEncodeSessionEx(
         p_hjk_enc_info->m_list_enc_reg_res[i].resourceToRegister = NULL;
         p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource = NULL;
     }
-    *handle = (void *)p_hjk_enc_info;
+    *hj_enc_handle = (void *)p_hjk_enc_info;
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetEncodeGUIDCount(void *handle, int *count)
+static int hjk_EncGetEncodeGUIDCount(void *hj_enc_handle, int *count)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -360,7 +360,7 @@ static int hjk_EncGetEncodeGUIDCount(void *handle, int *count)
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetEncodeGUIDs(void *handle, void *guid, int count,
+static int hjk_EncGetEncodeGUIDs(void *hj_enc_handle, void *guid, int count,
 							int *ptr_count)
 {
     int i = 0;
@@ -378,7 +378,7 @@ static int hjk_EncGetEncodeGUIDs(void *handle, void *guid, int count,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetEncodeCaps(void *handle, int encodeGUID,
+static int hjk_EncGetEncodeCaps(void *hj_enc_handle, int encodeGUID,
 						   HJK_ENC_CAPS_PARAM *caps_params, int *val)
 {
     int ret = HJK_ENC_SUCCESS;
@@ -416,7 +416,7 @@ static int hjk_EncGetEncodeCaps(void *handle, int encodeGUID,
     return ret;
 }
 
-static int hjk_EncGetEncodePresetConfigEx(void *handle, int encodeGUID,
+static int hjk_EncGetEncodePresetConfigEx(void *hj_enc_handle, int encodeGUID,
 									 int presetGUID, int tuningInfo,
 									 HJK_ENC_PRESET_CONFIG *preset_config)
 {
@@ -425,7 +425,7 @@ static int hjk_EncGetEncodePresetConfigEx(void *handle, int encodeGUID,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetEncodePresetConfig(void *handle,
+static int hjk_EncGetEncodePresetConfig(void *hj_enc_handle,
 								   int encodeGUID,
 								   int presetGUID,
 								   HJK_ENC_PRESET_CONFIG *preset_config)
@@ -435,23 +435,23 @@ static int hjk_EncGetEncodePresetConfig(void *handle,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncInitializeEncoder(void *handle, HJK_ENC_INITIALIZE_PARAMS *init_encode_params)
+static int hjk_EncInitializeEncoder(void *hj_enc_handle, HJK_ENC_INITIALIZE_PARAMS *init_encode_params)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == init_encode_params) {
+    if (NULL == hj_enc_handle || NULL == init_encode_params) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
 
     memcpy(&p_hjk_enc_info->m_enc_init_params, init_encode_params, sizeof(*init_encode_params));
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncSetIOHjkStreams(void *handle, HJstream *hj_stream,
+static int hjk_EncSetIOHjkStreams(void *hj_enc_handle, HJstream *hj_stream,
 							  HJstream *hj_stream1)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
@@ -459,7 +459,7 @@ static int hjk_EncSetIOHjkStreams(void *handle, HJstream *hj_stream,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncCreateInputBuffer(void *handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf)
+static int hjk_EncCreateInputBuffer(void *hj_enc_handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -467,25 +467,25 @@ static int hjk_EncCreateInputBuffer(void *handle, HJK_ENC_CREATE_INPUT_BUFFER *a
 }
 
 /*
-#0  hjk_EncCreateBitstreamBuffer (handle=0x8406500, allocOut=0x7ffffffedb90) at libavutil/../libavcodec/hjk_api.c:386
+#0  hjk_EncCreateBitstreamBuffer (hj_enc_handle=0x8406500, allocOut=0x7ffffffedb90) at libavutil/../libavcodec/hjk_api.c:386
 #1  0x00007ffffe03f014 in hjkenc_alloc_surface (avctx=0x8404be0, idx=0) at libavcodec/hjkenc.c:1308
 #2  0x00007ffffe03f303 in hjkenc_setup_surfaces (avctx=0x8404be0) at libavcodec/hjkenc.c:1354
 #3  0x00007ffffe03fb73 in ff_hjkenc_encode_init (avctx=0x8404be0) at libavcodec/hjkenc.c:1507
 #4  0x00007ffffe3acfb5 in avcodec_open2 (avctx=0x8404be0, codec=0x7ffffec097c0 <ff_mjpeg_hjkenc_encoder>, options=0x0) at libavcodec/utils.c:935
 #5  0x0000000008001777 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:161
 */
-static int hjk_EncCreateBitstreamBuffer(void *handle, HJK_ENC_CREATE_BITSTREAM_BUFFER *allocOut)
+static int hjk_EncCreateBitstreamBuffer(void *hj_enc_handle, HJK_ENC_CREATE_BITSTREAM_BUFFER *allocOut)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
     int out_size = 0;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == allocOut) {
+    if (NULL == hj_enc_handle || NULL == allocOut) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
 
     out_size = p_hjk_enc_info->m_enc_init_params.encodeWidth *
                p_hjk_enc_info->m_enc_init_params.encodeHeight;
@@ -531,24 +531,24 @@ static int hjk_EncCreateBitstreamBuffer(void *handle, HJK_ENC_CREATE_BITSTREAM_B
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetSequenceParams(void *handle, HJK_ENC_SEQUENCE_PARAM_PAYLOAD *payload)
+static int hjk_EncGetSequenceParams(void *hj_enc_handle, HJK_ENC_SEQUENCE_PARAM_PAYLOAD *hj_payload)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncRegisterResource(void *handle, HJK_ENC_REGISTER_RESOURCE *reg)
+static int hjk_EncRegisterResource(void *hj_enc_handle, HJK_ENC_REGISTER_RESOURCE *reg)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == reg) {
+    if (NULL == hj_enc_handle || NULL == reg) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     for (i = 0; i < HJK_ENC_REGI_RES_NUM; i++) {
         if (NULL == p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource) {
             // find ok, register i resource
@@ -561,25 +561,25 @@ static int hjk_EncRegisterResource(void *handle, HJK_ENC_REGISTER_RESOURCE *reg)
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncReconfigureEncoder(void *handle, HJK_ENC_RECONFIGURE_PARAMS *params)
+static int hjk_EncReconfigureEncoder(void *hj_enc_handle, HJK_ENC_RECONFIGURE_PARAMS *hj_params)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncMapInputResource(void *handle,
+static int hjk_EncMapInputResource(void *hj_enc_handle,
 							  HJK_ENC_MAP_INPUT_RESOURCE *in_map)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == in_map) {
+    if (NULL == hj_enc_handle || NULL == in_map) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     for (i = 0; i < HJK_ENC_REGI_RES_NUM; i++) {
         if (p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource ==
             in_map->registeredResource) {
@@ -593,14 +593,14 @@ static int hjk_EncMapInputResource(void *handle,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncLockInputBuffer(void *handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams)
+static int hjk_EncLockInputBuffer(void *hj_enc_handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncUnlockInputBuffer(void *handle, HJK_ENC_INPUT_PTR input_surface)
+static int hjk_EncUnlockInputBuffer(void *hj_enc_handle, HJK_ENC_INPUT_PTR hjk_input_surface)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -608,32 +608,32 @@ static int hjk_EncUnlockInputBuffer(void *handle, HJK_ENC_INPUT_PTR input_surfac
 }
 
 /* p2 enc encoder 
-#0  hjk_EncEncodePicture (handle=0x8406500, params=0x7ffffffedcd0) at libavutil/../libavcodec/hjk_api.c:409
+#0  hjk_EncEncodePicture (hj_enc_handle=0x8406500, hj_params=0x7ffffffedcd0) at libavutil/../libavcodec/hjk_api.c:409
 #1  0x00007ffffe0417e3 in ff_hjkenc_send_frame (avctx=0x8404be0, frame=0x8408f70) at libavcodec/hjkenc.c:2139
 #2  0x00007ffffdd53433 in avcodec_send_frame (avctx=0x8404be0, frame=0x8408f70) at libavcodec/encode.c:403
 #3  0x00000000080012ae in encode_write (avctx=0x8404be0, frame=0x8408f70, fout=0x8404490) at doc/examples/hjkjpg_encode.c:83
 #4  0x0000000008001af3 in main (argc=1, argv=0x7ffffffee168) at doc/examples/hjkjpg_encode.c:200
 */
-static int hjk_EncEncodePicture(void *handle, HJK_ENC_PIC_PARAMS *params)
+static int hjk_EncEncodePicture(void *hj_enc_handle, HJK_ENC_PIC_PARAMS *hj_params)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HJK_ENC_REGISTER_RESOURCE *p_enc_reg_res = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
-    if (NULL == handle || NULL == params) {
+    if (NULL == hj_enc_handle || NULL == hj_params) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
         return HJK_ENC_ERR_INVALID_PTR;
     }
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     p_hjk_enc_info = p_hjk_enc_info;
-    p_enc_reg_res = (HJK_ENC_REGISTER_RESOURCE *)params->inputBuffer;
+    p_enc_reg_res = (HJK_ENC_REGISTER_RESOURCE *)hj_params->inputBuffer;
     if (NULL == p_enc_reg_res) {
         return HJK_ENC_SUCCESS;
     }
     printf("%d %s in buf p_enc_reg_res->resourceToRegister=%p\n", __LINE__, __FUNCTION__, p_enc_reg_res->resourceToRegister);
-    p_hjk_enc_inter_out = (HjkEncoderInterOut *)params->outputBitstream; 
-    printf("%d %s out buf params->outputBitstream=%p\n", __LINE__, __FUNCTION__,
-           params->outputBitstream);
+    p_hjk_enc_inter_out = (HjkEncoderInterOut *)hj_params->outputBitstream; 
+    printf("%d %s out buf hj_params->outputBitstream=%p\n", __LINE__, __FUNCTION__,
+           hj_params->outputBitstream);
 
 #if 1
     //test copy raw yuv data
@@ -691,20 +691,20 @@ static int hjk_EncEncodePicture(void *handle, HJK_ENC_PIC_PARAMS *params)
 }
 
 /* p3 start encode data*/
-static int hjk_EncLockBitstream(void *handle, HJK_ENC_LOCK_BITSTREAM *lock_params)
+static int hjk_EncLockBitstream(void *hj_enc_handle, HJK_ENC_LOCK_BITSTREAM *lock_params)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == lock_params) {
+    if (NULL == hj_enc_handle || NULL == lock_params) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
     if (NULL == lock_params->outputBitstream) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     p_hjk_enc_info = p_hjk_enc_info;
     p_hjk_enc_inter_out = (HjkEncoderInterOut *)lock_params->outputBitstream;
     printf("%d %s outputBitstream=%p  m_enc_out_virtual_addr=%p\n", __LINE__, __FUNCTION__, lock_params->outputBitstream, p_hjk_enc_inter_out->m_enc_out_virtual_addr);
@@ -713,36 +713,36 @@ static int hjk_EncLockBitstream(void *handle, HJK_ENC_LOCK_BITSTREAM *lock_param
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncUnlockBitstream(void *handle, HJK_ENC_OUTPUT_PTR output_surface)
+static int hjk_EncUnlockBitstream(void *hj_enc_handle, HJK_ENC_OUTPUT_PTR hjk_output_surface)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == output_surface) {
+    if (NULL == hj_enc_handle || NULL == hjk_output_surface) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     p_hjk_enc_info = p_hjk_enc_info;
-    p_hjk_enc_inter_out = (HjkEncoderInterOut *)output_surface;
+    p_hjk_enc_inter_out = (HjkEncoderInterOut *)hjk_output_surface;
     p_hjk_enc_inter_out->m_enc_data_len = 0;
 
     return HJK_ENC_SUCCESS;
 }
 
 static int hjk_EncUnmapInputResource(
-	void *handle, HJK_ENC_INPUT_PTR mappedResource)
+	void *hj_enc_handle, HJK_ENC_INPUT_PTR mappedResource)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == mappedResource) {
+    if (NULL == hj_enc_handle || NULL == mappedResource) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     for (i = 0; i < HJK_ENC_REGI_RES_NUM; i++) {
         if (&p_hjk_enc_info->m_list_enc_reg_res[i]/*.resourceToRegister*/ ==
             mappedResource) {
@@ -755,21 +755,21 @@ static int hjk_EncUnmapInputResource(
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncUnregisterResource(void *handle,
-								HJK_ENC_REGISTERED_PTR regptr)
+static int hjk_EncUnregisterResource(void *hj_enc_handle,
+								HJK_ENC_REGISTERED_PTR hjk_regptr)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle || NULL == regptr) {
+    if (NULL == hj_enc_handle || NULL == hjk_regptr) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     for (i = 0; i < HJK_ENC_REGI_RES_NUM; i++) {
         if (p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource ==
-            regptr) {
+            hjk_regptr) {
             // find ok, release i resource
             printf("%d %s find ok, release i resource\n", __LINE__,
                    __FUNCTION__);
@@ -780,14 +780,14 @@ static int hjk_EncUnregisterResource(void *handle,
 
     return HJK_ENC_SUCCESS;
 }
-static int hjk_EncDestroyBitstreamBuffer(void *handle,
-									HJK_ENC_OUTPUT_PTR output_surface)
+static int hjk_EncDestroyBitstreamBuffer(void *hj_enc_handle,
+									HJK_ENC_OUTPUT_PTR hjk_output_surface)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL != output_surface) {
+    if (NULL != hjk_output_surface) {
         HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
-        p_hjk_enc_inter_out = output_surface;
+        p_hjk_enc_inter_out = hjk_output_surface;
         if (NULL != p_hjk_enc_inter_out->m_enc_out_virtual_addr) {
             free(p_hjk_enc_inter_out->m_enc_out_virtual_addr);
             p_hjk_enc_inter_out->m_enc_out_virtual_addr = NULL;
@@ -800,31 +800,31 @@ static int hjk_EncDestroyBitstreamBuffer(void *handle,
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncDestroyEncoder(void *handle)
+static int hjk_EncDestroyEncoder(void *hj_enc_handle)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
-    if (NULL == handle) {
+    if (NULL == hj_enc_handle) {
         printf("%d %s \n", __LINE__, __FUNCTION__);
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    p_hjk_enc_info = (HjkEncoderInfo *)handle;
+    p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
 
     free(p_hjk_enc_info);
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncDestroyInputBuffer(void *handle,
-								HJK_ENC_INPUT_PTR input_surface)
+static int hjk_EncDestroyInputBuffer(void *hj_enc_handle,
+								HJK_ENC_INPUT_PTR hjk_input_surface)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
     return HJK_ENC_SUCCESS;
 }
 
-static int hjk_EncGetLastErrorString(void *handle)
+static int hjk_EncGetLastErrorString(void *hj_enc_handle)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
 
@@ -954,30 +954,30 @@ static int hj_vidGetDecoderCaps(HJVIDDECODECAPS *caps)
     return HJK_SUCCESS;
 }
 
-static int hj_vidCreateDecoder(HJvideodecoder *decoder,
-						  HJVIDDECODECREATEINFO *params)
+static int hj_vidCreateDecoder(HJvideodecoder *hj_video_decoder,
+						  HJVIDDECODECREATEINFO *hj_params)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == decoder || NULL == params) {
+    if (NULL == hj_video_decoder || NULL == hj_params) {
         return -1;
     }
     if (NULL == (p_hjk_decoder_info = (HjkDecoderInfo *)malloc(sizeof(*p_hjk_decoder_info)))) {
         return HJK_ENOMEM;
     }
     if (NULL == (p_hjk_decoder_info->m_decoce_data_output =
-                     malloc(params->ulNumOutputSurfaces * sizeof(HjkDecoderBuffer)))) {
+                     malloc(hj_params->ulNumOutputSurfaces * sizeof(HjkDecoderBuffer)))) {
         free(p_hjk_decoder_info);
         return HJK_ENOMEM;
     }
 
-    memcpy(&p_hjk_decoder_info->m_hj_vid_info, params, sizeof(*params));
-    *decoder = p_hjk_decoder_info;
+    memcpy(&p_hjk_decoder_info->m_hj_vid_info, hj_params, sizeof(*hj_params));
+    *hj_video_decoder = p_hjk_decoder_info;
 
     return HJK_SUCCESS;
 }
 
-static int hj_vidDecodePicture(HJvideodecoder decoder,
+static int hj_vidDecodePicture(HJvideodecoder hj_video_decoder,
 						  HJVIDPICPARAMS *pic_params)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
@@ -987,13 +987,13 @@ static int hj_vidDecodePicture(HJvideodecoder decoder,
     uint8_t *decode_data_output = NULL;
 
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == decoder || NULL == pic_params) {
-        printf("%d %s decoder=%p pic_params=%p\n", __LINE__, __FUNCTION__,
-               decoder, pic_params);
+    if (NULL == hj_video_decoder || NULL == pic_params) {
+        printf("%d %s hj_video_decoder=%p pic_params=%p\n", __LINE__, __FUNCTION__,
+               hj_video_decoder, pic_params);
         return -1;
     }
 
-    p_hjk_decoder_info = (HjkDecoderInfo *)decoder;
+    p_hjk_decoder_info = (HjkDecoderInfo *)hj_video_decoder;
 
     if (pic_params->nBitstreamDataLen <= 0) {
         return HJK_EINVALID;
@@ -1018,16 +1018,16 @@ static int hj_vidDecodePicture(HJvideodecoder decoder,
     return HJK_SUCCESS;
 }
 
-static int hj_vidMapVideoFrame(HJvideodecoder decoder, unsigned int idx,
+static int hj_vidMapVideoFrame(HJvideodecoder hj_video_decoder, unsigned int idx,
 						  HJdeviceptr *devptr, unsigned int *pitch,
 						  HJVIDPROCPARAMS *vpp)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == decoder || NULL == devptr|| NULL == vpp) {
+    if (NULL == hj_video_decoder || NULL == devptr|| NULL == vpp) {
         return -1;
     }
-    p_hjk_decoder_info = (HjkDecoderInfo *)decoder;
+    p_hjk_decoder_info = (HjkDecoderInfo *)hj_video_decoder;
     *devptr = (HJdeviceptr)(p_hjk_decoder_info->m_decoce_data_output[idx]
                                 .m_dec_output);
     *pitch = p_hjk_decoder_info->m_decoce_data_output[idx].m_pitch;
@@ -1035,10 +1035,10 @@ static int hj_vidMapVideoFrame(HJvideodecoder decoder, unsigned int idx,
     return HJK_SUCCESS;
 }
 
-static int hj_vidUnmapVideoFrame(HJvideodecoder decoder, HJdeviceptr devptr)
+static int hj_vidUnmapVideoFrame(HJvideodecoder hj_video_decoder, HJdeviceptr devptr)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == decoder || NULL == devptr) {
+    if (NULL == hj_video_decoder || NULL == devptr) {
         return -1;
     }
 
@@ -1047,14 +1047,14 @@ static int hj_vidUnmapVideoFrame(HJvideodecoder decoder, HJdeviceptr devptr)
     return HJK_SUCCESS;
 }
 
-static int hj_vidDestroyDecoder(HJvideodecoder decoder)
+static int hj_vidDestroyDecoder(HJvideodecoder hj_video_decoder)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == decoder) {
+    if (NULL == hj_video_decoder) {
         return -1;
     }
-    p_hjk_decoder_info = (HjkDecoderInfo *)decoder;
+    p_hjk_decoder_info = (HjkDecoderInfo *)hj_video_decoder;
     free(p_hjk_decoder_info->m_decoce_data_output);
     free(p_hjk_decoder_info);
 
@@ -1071,27 +1071,27 @@ static HjvidFunctions hj_vid_functions = {
     .hjvidDestroyDecoder = hj_vidDestroyDecoder,
 };
 
-int hjvid_load_functions(HjvidFunctions **hvdl, void *logctx)
+int hjvid_load_functions(HjvidFunctions **hj_vid_f, void *logctx)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == hvdl) {
+    if (NULL == hj_vid_f) {
         return -1;
     }
 
-    *hvdl = &hj_vid_functions;
+    *hj_vid_f = &hj_vid_functions;
 
     return HJK_SUCCESS;
 }
 
-void hjvid_free_functions(HjvidFunctions **hvdl)
+void hjvid_free_functions(HjvidFunctions **hj_vid_f)
 {
     printf("%d %s \n", __LINE__, __FUNCTION__);
-    if (NULL == hvdl) {
+    if (NULL == hj_vid_f) {
         return;
     }
 
-    if (NULL != *hvdl) {
-        *hvdl = NULL;
+    if (NULL != *hj_vid_f) {
+        *hj_vid_f = NULL;
     }
 
     return;

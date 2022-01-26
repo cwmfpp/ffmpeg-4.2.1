@@ -1,7 +1,7 @@
 /*
  * HW decode acceleration through HJKDEC
  *
- * Copyright (c) 2016 Anton Khirnov
+ * Copyright (c) 2022
  *
  * This file is part of FFmpeg.
  *
@@ -56,7 +56,7 @@ typedef struct HJKDECFramePool {
     unsigned int nb_allocated;
 } HJKDECFramePool;
 
-#define CHECK_CU(x) FF_HJK_CHECK_DL(logctx, decoder->hjdl, x)
+#define CHECK_HJ(x) FF_HJK_CHECK_DL(logctx, decoder->hjdl, x)
 
 static int map_avcodec_id(enum AVCodecID id)
 {
@@ -113,7 +113,7 @@ static int hjkdec_test_capabilities(HJKDECDecoder *decoder,
         return 0;
     }
 
-    ret = CHECK_CU(decoder->hvdl->hjvidGetDecoderCaps(&caps));
+    ret = CHECK_HJ(decoder->hvdl->hjvidGetDecoderCaps(&caps));
     if (ret < 0)
         return ret;
 
@@ -158,9 +158,9 @@ static void hjkdec_decoder_free(void *opaque, uint8_t *data)
     if (decoder->decoder) {
         void *logctx = decoder->hw_device_ref->data;
         HJcontext dummy;
-        CHECK_CU(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
-        CHECK_CU(decoder->hvdl->hjvidDestroyDecoder(decoder->decoder));
-        CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+        CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
+        CHECK_HJ(decoder->hvdl->hjvidDestroyDecoder(decoder->decoder));
+        CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
     }
 
     av_buffer_unref(&decoder->hw_device_ref);
@@ -208,19 +208,19 @@ static int hjkdec_decoder_create(AVBufferRef **out, AVBufferRef *hw_device_ref,
         goto fail;
     }
 
-    ret = CHECK_CU(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
+    ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
     if (ret < 0)
         goto fail;
 
     ret = hjkdec_test_capabilities(decoder, params, logctx);
     if (ret < 0) {
-        CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+        CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
         goto fail;
     }
 
-    ret = CHECK_CU(decoder->hvdl->hjvidCreateDecoder(&decoder->decoder, params));
+    ret = CHECK_HJ(decoder->hvdl->hjvidCreateDecoder(&decoder->decoder, params));
 
-    CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+    CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
 
     if (ret < 0) {
         goto fail;
@@ -388,13 +388,13 @@ static void hjkdec_unmap_mapped_frame(void *opaque, uint8_t *data)
     int ret;
     HJcontext dummy;
 
-    ret = CHECK_CU(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
+    ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
     if (ret < 0)
         goto finish;
 
-    CHECK_CU(decoder->hvdl->hjvidUnmapVideoFrame(decoder->decoder, devptr));
+    CHECK_HJ(decoder->hvdl->hjvidUnmapVideoFrame(decoder->decoder, devptr));
 
-    CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+    CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
 
 finish:
     av_buffer_unref(&unmap_data->idx_ref);
@@ -424,11 +424,11 @@ static int hjkdec_retrieve_data(void *logctx, AVFrame *frame)
     vpp.progressive_frame = 1;
     vpp.output_stream = decoder->stream;
 
-    ret = CHECK_CU(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
+    ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(decoder->hvdl->hjvidMapVideoFrame(decoder->decoder,
+    ret = CHECK_HJ(decoder->hvdl->hjvidMapVideoFrame(decoder->decoder,
                                                      cf->idx, &devptr,
                                                      &pitch, &vpp));
     if (ret < 0)
@@ -463,14 +463,14 @@ static int hjkdec_retrieve_data(void *logctx, AVFrame *frame)
 
 copy_fail:
     if (!frame->buf[1]) {
-        CHECK_CU(decoder->hvdl->hjvidUnmapVideoFrame(decoder->decoder, devptr));
+        CHECK_HJ(decoder->hvdl->hjvidUnmapVideoFrame(decoder->decoder, devptr));
         av_freep(&unmap_data);
     } else {
         av_buffer_unref(&frame->buf[1]);
     }
 
 finish:
-    CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+    CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
     return ret;
 }
 
@@ -532,16 +532,16 @@ int ff_hjkdec_end_frame(AVCodecContext *avctx)
     pp->nNumSlices        = ctx->nb_slices;
     pp->pSliceDataOffsets = ctx->slice_offsets;
 
-    ret = CHECK_CU(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
+    ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
     if (ret < 0)
         return ret;
 
-    ret = CHECK_CU(decoder->hvdl->hjvidDecodePicture(decoder->decoder, &ctx->pic_params));
+    ret = CHECK_HJ(decoder->hvdl->hjvidDecodePicture(decoder->decoder, &ctx->pic_params));
     if (ret < 0)
         goto finish;
 
 finish:
-    CHECK_CU(decoder->hjdl->hjCtxPopCurrent(&dummy));
+    CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
 
     return ret;
 }
