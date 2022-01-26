@@ -32,11 +32,11 @@ static int hjkdec_mjpeg_start_frame(AVCodecContext *avctx, const uint8_t *buffer
 
     HJKDECContext      *ctx = avctx->internal->hwaccel_priv_data;
     HJVIDPICPARAMS     *pp = &ctx->pic_params;
-    FrameDecodeData *fdd;
-    HJKDECFrame *cf;
+    FrameDecodeData *fdd = NULL;
+    HJKDECFrame *cf = NULL;
     AVFrame *cur_frame = s->picture;
 
-    int ret;
+    int ret = 0;
 
     ret = ff_hjkdec_start_frame(avctx, cur_frame);
     if (ret < 0)
