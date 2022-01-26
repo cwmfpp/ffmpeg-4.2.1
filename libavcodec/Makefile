@@ -125,7 +125,6 @@ OBJS-$(CONFIG_MPEGVIDEOENC)            += mpegvideo_enc.o mpeg12data.o  \
                                           mpegvideoencdsp.o
 OBJS-$(CONFIG_MSS34DSP)                += mss34dsp.o
 OBJS-$(CONFIG_NVENC)                   += nvenc.o
-OBJS-$(CONFIG_HJKENC)                  += ffhjkcodec/hjk_api.o hjkenc.o
 OBJS-$(CONFIG_PIXBLOCKDSP)             += pixblockdsp.o
 OBJS-$(CONFIG_QPELDSP)                 += qpeldsp.o
 OBJS-$(CONFIG_QSV)                     += qsv.o
@@ -150,8 +149,11 @@ OBJS-$(CONFIG_VP8DSP)                  += vp8dsp.o
 OBJS-$(CONFIG_V4L2_M2M)                += v4l2_m2m.o v4l2_context.o v4l2_buffers.o v4l2_fmt.o
 OBJS-$(CONFIG_WMA_FREQS)               += wma_freqs.o
 OBJS-$(CONFIG_WMV2DSP)                 += wmv2dsp.o
+OBJS-$(CONFIG_HJK)                     += ffhjkcodec/hjk_api.o
+OBJS-$(CONFIG_HJKENC)                  += hjkenc.o
 OBJS-$(CONFIG_MJPEG_HJKENC_ENCODER)    += hjkenc_mjpeg.o
 $(warning chenwenmin CONFIG_HJKENC=$(CONFIG_HJKENC))
+$(warning chenwenmin CONFIG_HJK=$(CONFIG_HJK))
 
 # decoders/encoders
 OBJS-$(CONFIG_ZERO12V_DECODER)         += 012v.o
@@ -864,10 +866,10 @@ OBJS-$(CONFIG_ADPCM_YAMAHA_ENCODER)       += adpcmenc.o adpcm_data.o
 OBJS-$(CONFIG_D3D11VA)                    += dxva2.o
 OBJS-$(CONFIG_DXVA2)                      += dxva2.o
 OBJS-$(CONFIG_NVDEC)                      += nvdec.o
-OBJS-$(CONFIG_HJKDEC)                     += hjkdec.o
 OBJS-$(CONFIG_VAAPI)                      += vaapi_decode.o
 OBJS-$(CONFIG_VIDEOTOOLBOX)               += videotoolbox.o
 OBJS-$(CONFIG_VDPAU)                      += vdpau.o
+OBJS-$(CONFIG_HJKDEC)                     += hjkdec.o
 
 OBJS-$(CONFIG_H263_VAAPI_HWACCEL)         += vaapi_mpeg4.o
 OBJS-$(CONFIG_H263_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
@@ -885,7 +887,6 @@ OBJS-$(CONFIG_HEVC_QSV_HWACCEL)           += qsvdec_h2645.o
 OBJS-$(CONFIG_HEVC_VAAPI_HWACCEL)         += vaapi_hevc.o
 OBJS-$(CONFIG_HEVC_VDPAU_HWACCEL)         += vdpau_hevc.o
 OBJS-$(CONFIG_MJPEG_NVDEC_HWACCEL)        += nvdec_mjpeg.o
-OBJS-$(CONFIG_MJPEG_HJKDEC_HWACCEL)       += hjkdec_mjpeg.o
 OBJS-$(CONFIG_MJPEG_VAAPI_HWACCEL)        += vaapi_mjpeg.o
 OBJS-$(CONFIG_MPEG1_NVDEC_HWACCEL)        += nvdec_mpeg12.o
 OBJS-$(CONFIG_MPEG1_VDPAU_HWACCEL)        += vdpau_mpeg12.o
@@ -916,6 +917,7 @@ OBJS-$(CONFIG_VP9_DXVA2_HWACCEL)          += dxva2_vp9.o
 OBJS-$(CONFIG_VP9_NVDEC_HWACCEL)          += nvdec_vp9.o
 OBJS-$(CONFIG_VP9_VAAPI_HWACCEL)          += vaapi_vp9.o
 OBJS-$(CONFIG_VP8_QSV_HWACCEL)            += qsvdec_other.o
+OBJS-$(CONFIG_MJPEG_HJKDEC_HWACCEL)       += hjkdec_mjpeg.o
 
 # libavformat dependencies
 OBJS-$(CONFIG_ISO_MEDIA)               += mpeg4audio.o mpegaudiodata.o
