@@ -8,7 +8,7 @@
  *
  * FFmpeg is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTIHJLAR PURPOSE.  See the GNU
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
@@ -50,20 +50,23 @@ static int hjk_frames_get_constraints(AVHWDeviceContext *ctx,
                                        const void *hwconfig,
                                        AVHWFramesConstraints *constraints)
 {
-    int i;
+    int i = 0;
 
     constraints->valid_sw_formats = av_malloc_array(FF_ARRAY_ELEMS(supported_formats) + 1,
                                                     sizeof(*constraints->valid_sw_formats));
-    if (!constraints->valid_sw_formats)
+    if (!constraints->valid_sw_formats) {
         return AVERROR(ENOMEM);
+    }
 
-    for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++)
+    for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++) {
         constraints->valid_sw_formats[i] = supported_formats[i];
+    }
     constraints->valid_sw_formats[FF_ARRAY_ELEMS(supported_formats)] = AV_PIX_FMT_NONE;
 
     constraints->valid_hw_formats = av_malloc_array(2, sizeof(*constraints->valid_hw_formats));
-    if (!constraints->valid_hw_formats)
+    if (!constraints->valid_hw_formats) {
         return AVERROR(ENOMEM);
+    }
 
     constraints->valid_hw_formats[0] = AV_PIX_FMT_HJK;
     constraints->valid_hw_formats[1] = AV_PIX_FMT_NONE;
@@ -78,7 +81,7 @@ static void hjk_buffer_free(void *opaque, uint8_t *data)
     AVHJKDeviceContext    *hwctx = device_ctx->hwctx;
     HjkFunctions             *hj = hwctx->internal->hjk_dl;
 
-    HJcontext dummy;
+    HJcontext dummy = NULL;
 
     CHECK_HJ(hj->hjCtxPushCurrent(hwctx->hjk_ctx));
 
@@ -96,16 +99,18 @@ static AVBufferRef *hjk_pool_alloc(void *opaque, int size)
 
     AVBufferRef *ret = NULL;
     HJcontext dummy = NULL;
-    HJdeviceptr data;
-    int err;
+    HJdeviceptr data = NULL;
+    int err = 0;
 
     err = CHECK_HJ(hj->hjCtxPushCurrent(hwctx->hjk_ctx));
-    if (err < 0)
+    if (err < 0) {
         return NULL;
+    }
 
     err = CHECK_HJ(hj->hjMemAlloc(&data, size));
-    if (err < 0)
+    if (err < 0) {
         goto fail;
+    }
 
     ret = av_buffer_create((uint8_t*)data, size, hjk_buffer_free, ctx, 0);
     if (!ret) {
@@ -121,11 +126,12 @@ fail:
 static int hjk_frames_init(AVHWFramesContext *ctx)
 {
     HJKFramesContext *priv = ctx->internal->priv;
-    int i;
+    int i = 0;
 
     for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++) {
-        if (ctx->sw_format == supported_formats[i])
+        if (ctx->sw_format == supported_formats[i]) {
             break;
+        }
     }
     if (i == FF_ARRAY_ELEMS(supported_formats)) {
         av_log(ctx, AV_LOG_ERROR, "Pixel format '%s' is not supported\n",
@@ -137,12 +143,14 @@ static int hjk_frames_init(AVHWFramesContext *ctx)
 
     if (!ctx->pool) {
         int size = av_image_get_buffer_size(ctx->sw_format, ctx->width, ctx->height, HJK_FRAME_ALIGNMENT);
-        if (size < 0)
+        if (size < 0) {
             return size;
+        }
 
         ctx->internal->pool_internal = av_buffer_pool_init2(size, ctx, hjk_pool_alloc, NULL);
-        if (!ctx->internal->pool_internal)
+        if (!ctx->internal->pool_internal) {
             return AVERROR(ENOMEM);
+        }
     }
 
     return 0;
@@ -150,16 +158,18 @@ static int hjk_frames_init(AVHWFramesContext *ctx)
 
 static int hjk_get_buffer(AVHWFramesContext *ctx, AVFrame *frame)
 {
-    int res;
+    int res = 0;
 
     frame->buf[0] = av_buffer_pool_get(ctx->pool);
-    if (!frame->buf[0])
+    if (!frame->buf[0]) {
         return AVERROR(ENOMEM);
+    }
 
     res = av_image_fill_arrays(frame->data, frame->linesize, frame->buf[0]->data,
                                ctx->sw_format, ctx->width, ctx->height, HJK_FRAME_ALIGNMENT);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
 
     // YUV420P is a special case.
     // Hjenc expects the U/V planes in swapped order from how ffmpeg expects them, also chroma is half-aligned
@@ -180,11 +190,12 @@ static int hjk_transfer_get_formats(AVHWFramesContext *ctx,
                                      enum AVHWFrameTransferDirection dir,
                                      enum AVPixelFormat **formats)
 {
-    enum AVPixelFormat *fmts;
+    enum AVPixelFormat *fmts = NULL;
 
     fmts = av_malloc_array(2, sizeof(*fmts));
-    if (!fmts)
+    if (!fmts) {
         return AVERROR(ENOMEM);
+    }
 
     fmts[0] = ctx->sw_format;
     fmts[1] = AV_PIX_FMT_NONE;
@@ -202,12 +213,13 @@ static int hjk_transfer_data_from(AVHWFramesContext *ctx, AVFrame *dst,
     AVHJKDeviceContext    *hwctx = device_ctx->hwctx;
     HjkFunctions             *hj = hwctx->internal->hjk_dl;
 
-    HJcontext dummy;
-    int i, ret;
+    HJcontext dummy = NULL;
+    int i = 0, ret = 0;
 
     ret = CHECK_HJ(hj->hjCtxPushCurrent(hwctx->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     for (i = 0; i < FF_ARRAY_ELEMS(src->data) && src->data[i]; i++) {
         HJK_MEMCPY2D cpy = {
@@ -222,13 +234,15 @@ static int hjk_transfer_data_from(AVHWFramesContext *ctx, AVFrame *dst,
         };
 
         ret = CHECK_HJ(hj->hjMemcpy2DAsync(&cpy, hwctx->stream));
-        if (ret < 0)
+        if (ret < 0) {
             goto exit;
+        }
     }
 
     ret = CHECK_HJ(hj->hjStreamSynchronize(hwctx->stream));
-    if (ret < 0)
+    if (ret < 0) {
         goto exit;
+    }
 
 exit:
     CHECK_HJ(hj->hjCtxPopCurrent(&dummy));
@@ -244,12 +258,13 @@ static int hjk_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
     AVHJKDeviceContext    *hwctx = device_ctx->hwctx;
     HjkFunctions             *hj = hwctx->internal->hjk_dl;
 
-    HJcontext dummy;
-    int i, ret;
+    HJcontext dummy = NULL;
+    int i = 0, ret = 0;
 
     ret = CHECK_HJ(hj->hjCtxPushCurrent(hwctx->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     for (i = 0; i < FF_ARRAY_ELEMS(src->data) && src->data[i]; i++) {
         HJK_MEMCPY2D cpy = {
@@ -264,8 +279,9 @@ static int hjk_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
         };
 
         ret = CHECK_HJ(hj->hjMemcpy2DAsync(&cpy, hwctx->stream));
-        if (ret < 0)
+        if (ret < 0) {
             goto exit;
+        }
     }
 
 exit:
@@ -293,12 +309,13 @@ static void hjk_device_uninit(AVHWDeviceContext *device_ctx)
 static int hjk_device_init(AVHWDeviceContext *ctx)
 {
     AVHJKDeviceContext *hwctx = ctx->hwctx;
-    int ret;
+    int ret = 0;
 
     if (!hwctx->internal) {
         hwctx->internal = av_mallocz(sizeof(*hwctx->internal));
-        if (!hwctx->internal)
+        if (!hwctx->internal) {
             return AVERROR(ENOMEM);
+        }
     }
 
     if (!hwctx->internal->hjk_dl) {
@@ -321,30 +338,35 @@ static int hjk_device_create(AVHWDeviceContext *device_ctx,
                               AVDictionary *opts, int flags)
 {
     AVHJKDeviceContext *hwctx = device_ctx->hwctx;
-    HjkFunctions *hj;
-    HJdevice hj_device;
-    HJcontext dummy;
-    int ret, device_idx = 0;
+    HjkFunctions *hj = NULL;
+    HJdevice hj_device = NULL;
+    HJcontext dummy = NULL;
+    int ret = 0, device_idx = 0;
 
-    if (device)
+    if (device) {
         device_idx = strtol(device, NULL, 0);
+    }
 
-    if (hjk_device_init(device_ctx) < 0)
+    if (hjk_device_init(device_ctx) < 0) {
         goto error;
+    }
 
     hj = hwctx->internal->hjk_dl;
 
     ret = CHECK_HJ(hj->hjInit(0));
-    if (ret < 0)
+    if (ret < 0) {
         goto error;
+    }
 
     ret = CHECK_HJ(hj->hjDeviceGet(&hj_device, device_idx));
-    if (ret < 0)
+    if (ret < 0) {
         goto error;
+    }
 
     ret = CHECK_HJ(hj->hjCtxCreate(&hwctx->hjk_ctx, HJ_CTX_SCHED_BLOCKING_SYNC, hj_device));
-    if (ret < 0)
+    if (ret < 0) {
         goto error;
+    }
 
     // Setting stream to NULL will make functions automatically use the default HJstream
     hwctx->stream = NULL;
