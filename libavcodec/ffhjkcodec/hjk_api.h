@@ -635,6 +635,9 @@ typedef struct _HJVIDDECODECREATEINFO {
 typedef struct _HJVIDPROCPARAMS {
     int progressive_frame;
     HJstream output_stream;
+    void *opaque;
+    int m_out_pitch_width;
+    int m_out_pitch_height;
 } HJVIDPROCPARAMS;
 
 typedef struct _HJVIDDECODECAPS {

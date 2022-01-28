@@ -81,12 +81,13 @@ static int map_chroma_format(enum AVPixelFormat pix_fmt)
 
     av_pix_fmt_get_chroma_sub_sample(pix_fmt, &shift_h, &shift_v);
 
-    if (shift_h == 1 && shift_v == 1)
+    if (shift_h == 1 && shift_v == 1) {
         return hjkVideoChromaFormat_420;
-    else if (shift_h == 1 && shift_v == 0)
+    } else if (shift_h == 1 && shift_v == 0) {
         return hjkVideoChromaFormat_422;
-    else if (shift_h == 0 && shift_v == 0)
+    } else if (shift_h == 0 && shift_v == 0) {
         return hjkVideoChromaFormat_444;
+    }
 
     return -1;
 }
@@ -114,8 +115,9 @@ static int hjkdec_test_capabilities(HJKDECDecoder *decoder,
     }
 
     ret = CHECK_HJ(decoder->hvdl->hjvidGetDecoderCaps(&caps));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     av_log(logctx, AV_LOG_VERBOSE, "HJKDEC capabilities:\n");
     av_log(logctx, AV_LOG_VERBOSE, "format supported: %s, max_mb_count: %d\n",
@@ -180,11 +182,12 @@ static int hjkdec_decoder_create(AVBufferRef **out, AVBufferRef *hw_device_ref,
     HJKDECDecoder *decoder = NULL;
 
     HJcontext dummy = NULL;
-    int ret;
+    int ret = 0;
 
     decoder = av_mallocz(sizeof(*decoder));
-    if (!decoder)
+    if (!decoder) {
         return AVERROR(ENOMEM);
+    }
 
     decoder_ref = av_buffer_create((uint8_t*)decoder, sizeof(*decoder),
                                    hjkdec_decoder_free, NULL, AV_BUFFER_FLAG_READONLY);
@@ -209,8 +212,9 @@ static int hjkdec_decoder_create(AVBufferRef **out, AVBufferRef *hw_device_ref,
     }
 
     ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         goto fail;
+    }
 
     ret = hjkdec_test_capabilities(decoder, params, logctx);
     if (ret < 0) {
@@ -239,12 +243,14 @@ static AVBufferRef *hjkdec_decoder_frame_alloc(void *opaque, int size)
     HJKDECFramePool *pool = opaque;
     AVBufferRef *ret = NULL;
 
-    if (pool->nb_allocated >= pool->dpb_size)
+    if (pool->nb_allocated >= pool->dpb_size) {
         return NULL;
+    }
 
     ret = av_buffer_alloc(sizeof(unsigned int));
-    if (!ret)
+    if (!ret) {
         return NULL;
+    }
 
     *(unsigned int*)ret->data = pool->nb_allocated++;
 
@@ -273,20 +279,20 @@ int ff_hjkdec_decode_init(AVCodecContext *avctx)
 {
     HJKDECContext *ctx = avctx->internal->hwaccel_priv_data;
 
-    printf("%d %s \n", __LINE__, __FUNCTION__);
     HJKDECFramePool      *pool = NULL;
     AVHWFramesContext   *frames_ctx = NULL;
     const AVPixFmtDescriptor *sw_desc = NULL;
 
     HJVIDDECODECREATEINFO params = { 0 };
 
-    hjkVideoSurfaceFormat output_format;
-    int hjvid_codec_type, hjvid_chroma_format, chroma_444;
+    hjkVideoSurfaceFormat output_format = 0;
+    int hjvid_codec_type = 0, hjvid_chroma_format = 0, chroma_444 = 0;
     int ret = 0;
 
     sw_desc = av_pix_fmt_desc_get(avctx->sw_pix_fmt);
-    if (!sw_desc)
+    if (!sw_desc) {
         return AVERROR_BUG;
+    }
 
     hjvid_codec_type = map_avcodec_id(avctx->codec_id);
     if (hjvid_codec_type < 0) {
@@ -303,8 +309,9 @@ int ff_hjkdec_decode_init(AVCodecContext *avctx)
 
     if (!avctx->hw_frames_ctx) {
         ret = ff_decode_get_hw_frames_ctx(avctx, AV_HWDEVICE_TYPE_HJK);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
     }
 
     switch (sw_desc->comp[0].depth) {
@@ -370,8 +377,9 @@ static void hjkdec_fdd_priv_free(void *priv)
 {
     HJKDECFrame *cf = priv;
 
-    if (!cf)
+    if (!cf) {
         return;
+    }
 
     av_buffer_unref(&cf->idx_ref);
     av_buffer_unref(&cf->decoder_ref);
@@ -389,8 +397,9 @@ static void hjkdec_unmap_mapped_frame(void *opaque, uint8_t *data)
     HJcontext dummy = NULL;
 
     ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         goto finish;
+    }
 
     CHECK_HJ(decoder->hvdl->hjvidUnmapVideoFrame(decoder->decoder, devptr));
 
@@ -425,14 +434,16 @@ static int hjkdec_retrieve_data(void *logctx, AVFrame *frame)
     vpp.output_stream = decoder->stream;
 
     ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     ret = CHECK_HJ(decoder->hvdl->hjvidMapVideoFrame(decoder->decoder,
                                                      cf->idx, &devptr,
                                                      &pitch, &vpp));
-    if (ret < 0)
+    if (ret < 0) {
         goto finish;
+    }
 
     unmap_data = av_mallocz(sizeof(*unmap_data));
     if (!unmap_data) {
@@ -452,6 +463,11 @@ static int hjkdec_retrieve_data(void *logctx, AVFrame *frame)
     unmap_data->idx_ref = av_buffer_ref(cf->idx_ref);
     unmap_data->decoder_ref = av_buffer_ref(cf->decoder_ref);
 
+    if (vpp.m_out_pitch_width > 0 && vpp.m_out_pitch_height > 0) {
+        frame->width = vpp.m_out_pitch_width; /* update out width height, decode
+                                                 resize for yuv */
+        frame->height = vpp.m_out_pitch_height;
+    }
     av_pix_fmt_get_chroma_sub_sample(hwctx->sw_format, &shift_h, &shift_v);
     for (i = 0; frame->linesize[i]; i++) {
         frame->data[i] = (uint8_t*)(devptr + offset);
@@ -484,12 +500,14 @@ int ff_hjkdec_start_frame(AVCodecContext *avctx, AVFrame *frame)
     ctx->bitstream_len = 0;
     ctx->nb_slices     = 0;
 
-    if (fdd->hwaccel_priv)
+    if (fdd->hwaccel_priv) {
         return 0;
+    }
 
     cf = av_mallocz(sizeof(*cf));
-    if (!cf)
+    if (!cf) {
         return AVERROR(ENOMEM);
+    }
 
     cf->decoder_ref = av_buffer_ref(ctx->decoder_ref);
     if (!cf->decoder_ref) {
@@ -533,12 +551,14 @@ int ff_hjkdec_end_frame(AVCodecContext *avctx)
     pp->pSliceDataOffsets = ctx->slice_offsets;
 
     ret = CHECK_HJ(decoder->hjdl->hjCtxPushCurrent(decoder->hjk_ctx));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     ret = CHECK_HJ(decoder->hvdl->hjvidDecodePicture(decoder->decoder, &ctx->pic_params));
-    if (ret < 0)
+    if (ret < 0) {
         goto finish;
+    }
 
 finish:
     CHECK_HJ(decoder->hjdl->hjCtxPopCurrent(&dummy));
@@ -562,12 +582,14 @@ int ff_hjkdec_simple_decode_slice(AVCodecContext *avctx, const uint8_t *buffer,
 
     tmp = av_fast_realloc(ctx->slice_offsets, &ctx->slice_offsets_allocated,
                           (ctx->nb_slices + 1) * sizeof(*ctx->slice_offsets));
-    if (!tmp)
+    if (!tmp) {
         return AVERROR(ENOMEM);
+    }
     ctx->slice_offsets = tmp;
 
-    if (!ctx->bitstream)
+    if (!ctx->bitstream) {
         ctx->bitstream = (uint8_t*)buffer;
+    }
 
     ctx->slice_offsets[ctx->nb_slices] = buffer - ctx->bitstream;
     ctx->bitstream_len += size;
@@ -592,12 +614,13 @@ int ff_hjkdec_frame_params(AVCodecContext *avctx,
                           int supports_444)
 {
     AVHWFramesContext *frames_ctx = (AVHWFramesContext*)hw_frames_ctx->data;
-    const AVPixFmtDescriptor *sw_desc;
-    int hjvid_codec_type, hjvid_chroma_format, chroma_444;
+    const AVPixFmtDescriptor *sw_desc = NULL;
+    int hjvid_codec_type = 0, hjvid_chroma_format = 0, chroma_444 = 0;
 
     sw_desc = av_pix_fmt_desc_get(avctx->sw_pix_fmt);
-    if (!sw_desc)
+    if (!sw_desc) {
         return AVERROR_BUG;
+    }
 
     hjvid_codec_type = map_avcodec_id(avctx->codec_id);
     if (hjvid_codec_type < 0) {
@@ -624,8 +647,9 @@ int ff_hjkdec_frame_params(AVCodecContext *avctx,
     frames_ctx->free = hjkdec_free_dummy;
     frames_ctx->pool = av_buffer_pool_init(0, hjkdec_alloc_dummy);
 
-    if (!frames_ctx->pool)
+    if (!frames_ctx->pool) {
         return AVERROR(ENOMEM);
+    }
 
     switch (sw_desc->comp[0].depth) {
     case 8:
@@ -649,13 +673,15 @@ int ff_hjkdec_get_ref_idx(AVFrame *frame)
     FrameDecodeData *fdd = NULL;
     HJKDECFrame *cf = NULL;
 
-    if (!frame || !frame->private_ref)
+    if (!frame || !frame->private_ref) {
         return -1;
+    }
 
     fdd = (FrameDecodeData*)frame->private_ref->data;
     cf  = (HJKDECFrame*)fdd->hwaccel_priv;
-    if (!cf)
+    if (!cf) {
         return -1;
+    }
 
     return cf->idx;
 }

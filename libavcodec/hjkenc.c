@@ -63,6 +63,9 @@ const enum AVPixelFormat ff_hjkenc_pix_fmts[] = {
 #define IS_YUV444(pix_fmt) (pix_fmt == AV_PIX_FMT_YUV444P || \
                             pix_fmt == AV_PIX_FMT_YUV444P16)
 
+#define FEQ(m, n) (fabs(m - n) < 1e-9)
+#define FNEQ(m, n) (fabs(m - n) >= 1e-9)
+
 static const struct {
     HJKENCSTATUS hjerr;
     int         averr;
@@ -98,24 +101,26 @@ static const struct {
 
 static int hjkenc_map_error(HJKENCSTATUS err, const char **desc)
 {
-    int i;
+    int i = 0;
     for (i = 0; i < FF_ARRAY_ELEMS(hjkenc_errors); i++) {
         if (hjkenc_errors[i].hjerr == err) {
-            if (desc)
+            if (desc) {
                 *desc = hjkenc_errors[i].desc;
+            }
             return hjkenc_errors[i].averr;
         }
     }
-    if (desc)
+    if (desc) {
         *desc = "unknown error";
+    }
     return AVERROR_UNKNOWN;
 }
 
 static int hjkenc_print_error(void *log_ctx, HJKENCSTATUS err,
                              const char *error_string)
 {
-    const char *desc;
-    int ret;
+    const char *desc = NULL;
+    int ret = 0;
     ret = hjkenc_map_error(err, &desc);
     av_log(log_ctx, AV_LOG_ERROR, "%s: %s (%d)\n", error_string, desc, err);
     return ret;
@@ -155,13 +160,14 @@ static av_cold int hjkenc_load_libraries(AVCodecContext *avctx)
 {
     HjkencContext *ctx            = avctx->priv_data;
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
-    HJKENCSTATUS err;
-    uint32_t hjkenc_max_ver;
-    int ret;
+    HJKENCSTATUS err = 0;
+    uint32_t hjkenc_max_ver = 0;
+    int ret = 0;
 
     ret = hjk_load_functions(&dl_fn->hjk_dl, avctx);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     ret = hjkenc_load_functions(&dl_fn->hjkenc_dl, avctx);
     if (ret < 0) {
@@ -170,8 +176,9 @@ static av_cold int hjkenc_load_libraries(AVCodecContext *avctx)
     }
 
     err = dl_fn->hjkenc_dl->HjkEncodeAPIGetMaxSupportedVersion(&hjkenc_max_ver);
-    if (err != HJK_ENC_SUCCESS)
+    if (err != HJK_ENC_SUCCESS) {
         return hjkenc_print_error(avctx, err, "Failed to query hjkenc max version");
+    }
 
     av_log(avctx, AV_LOG_VERBOSE, "Loaded Hjkenc version %d.%d\n", hjkenc_max_ver >> 4, hjkenc_max_ver & 0xf);
 
@@ -187,8 +194,9 @@ static av_cold int hjkenc_load_libraries(AVCodecContext *avctx)
     dl_fn->hjkenc_funcs.version = HJK_ENCODE_API_FUNCTION_LIST_VER;
 
     err = dl_fn->hjkenc_dl->HjkEncodeAPICreateInstance(&dl_fn->hjkenc_funcs);
-    if (err != HJK_ENC_SUCCESS)
+    if (err != HJK_ENC_SUCCESS) {
         return hjkenc_print_error(avctx, err, "Failed to create hjkenc instance");
+    }
 
     av_log(avctx, AV_LOG_VERBOSE, "Hjkenc initialized successfully\n");
 
@@ -200,8 +208,9 @@ static int hjkenc_push_context(AVCodecContext *avctx)
     HjkencContext *ctx            = avctx->priv_data;
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
 
-    if (ctx->d3d11_device)
+    if (ctx->d3d11_device) {
         return 0;
+    }
 
     return CHECK_HJ(dl_fn->hjk_dl->hjCtxPushCurrent(ctx->hjk_context));
 }
@@ -212,8 +221,9 @@ static int hjkenc_pop_context(AVCodecContext *avctx)
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJcontext dummy;
 
-    if (ctx->d3d11_device)
+    if (ctx->d3d11_device) {
         return 0;
+    }
 
     return CHECK_HJ(dl_fn->hjk_dl->hjCtxPopCurrent(&dummy));
 }
@@ -223,7 +233,7 @@ static av_cold int hjkenc_open_session(AVCodecContext *avctx)
     HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS params = { 0 };
     HjkencContext *ctx = avctx->priv_data;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &ctx->hjkenc_dload_funcs.hjkenc_funcs;
-    HJKENCSTATUS ret;
+    HJKENCSTATUS ret = 0;
 
     params.version    = HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS_VER;
     params.apiVersion = HJKENCAPI_VERSION;
@@ -248,17 +258,19 @@ static int hjkenc_check_codec_support(AVCodecContext *avctx)
 {
     HjkencContext *ctx                    = avctx->priv_data;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &ctx->hjkenc_dload_funcs.hjkenc_funcs;
-    int i, ret, count = 0;
+    int i = 0, ret = 0, count = 0;
     GUID *guids = NULL;
 
     ret = p_hjkenc->hjkEncGetEncodeGUIDCount(ctx->hjkencoder, &count);
 
-    if (ret != HJK_ENC_SUCCESS || !count)
+    if (ret != HJK_ENC_SUCCESS || !count) {
         return AVERROR(ENOSYS);
+    }
 
     guids = av_malloc(count * sizeof(GUID));
-    if (!guids)
+    if (!guids) {
         return AVERROR(ENOMEM);
+    }
 
     ret = p_hjkenc->hjkEncGetEncodeGUIDs(ctx->hjkencoder, guids, count, &count);
     if (ret != HJK_ENC_SUCCESS) {
@@ -285,22 +297,23 @@ static int hjkenc_check_cap(AVCodecContext *avctx, HJK_ENC_CAPS cap)
     HjkencContext *ctx = avctx->priv_data;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &ctx->hjkenc_dload_funcs.hjkenc_funcs;
     HJK_ENC_CAPS_PARAM params        = { 0 };
-    int ret, val = 0;
+    int ret = 0, val = 0;
 
     params.version     = HJK_ENC_CAPS_PARAM_VER;
     params.capsToQuery = cap;
 
     ret = p_hjkenc->hjkEncGetEncodeCaps(ctx->hjkencoder, ctx->init_encode_params.encodeGUID, &params, &val);
 
-    if (ret == HJK_ENC_SUCCESS)
+    if (ret == HJK_ENC_SUCCESS) {
         return val;
+    }
     return 0;
 }
 
 static int hjkenc_check_capabilities(AVCodecContext *avctx)
 {
     HjkencContext *ctx = avctx->priv_data;
-    int ret;
+    int ret = 0;
 
     ret = hjkenc_check_codec_support(avctx);
     if (ret < 0) {
@@ -407,24 +420,27 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
     char name[128] = { 0};
-    int major, minor, ret;
-    HJdevice hj_device;
+    int major = 0, minor = 0, ret = 0;
+    HJdevice hj_device = NULL;
     int loglevel = AV_LOG_VERBOSE;
 
-    if (ctx->device == LIST_DEVICES)
+    if (ctx->device == LIST_DEVICES) {
         loglevel = AV_LOG_INFO;
+    }
 
     ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceGet(&hj_device, idx));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceGetName(name, sizeof(name), hj_device));
     if (ret < 0)
         return ret;
 
     ret = CHECK_HJ(dl_fn->hjk_dl->hjDeviceComputeCapability(&major, &minor, hj_device));
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     av_log(avctx, loglevel, "[ GPU #%d - < %s > has Compute SM %d.%d ]\n", idx, name, major, minor);
     if (((major << 4) | minor) < HJKENC_CAP) {
@@ -432,40 +448,48 @@ static av_cold int hjkenc_check_device(AVCodecContext *avctx, int idx)
         goto fail;
     }
 
-    if (ctx->device != idx && ctx->device != ANY_DEVICE)
+    if (ctx->device != idx && ctx->device != ANY_DEVICE) {
         return -1;
+    }
 
     ret = CHECK_HJ(dl_fn->hjk_dl->hjCtxCreate(&ctx->hjk_context_internal, 0, hj_device));
-    if (ret < 0)
+    if (ret < 0) {
         goto fail;
+    }
 
     ctx->hjk_context = ctx->hjk_context_internal;
 
-    if ((ret = hjkenc_pop_context(avctx)) < 0)
+    if ((ret = hjkenc_pop_context(avctx)) < 0) {
         goto fail2;
+    }
 
-    if ((ret = hjkenc_open_session(avctx)) < 0)
+    if ((ret = hjkenc_open_session(avctx)) < 0) {
         goto fail2;
+    }
 
-    if ((ret = hjkenc_check_capabilities(avctx)) < 0)
+    if ((ret = hjkenc_check_capabilities(avctx)) < 0) {
         goto fail3;
+    }
 
     av_log(avctx, loglevel, "supports HJKENC\n");
 
     dl_fn->hjkenc_device_count++;
 
-    if (ctx->device == idx || ctx->device == ANY_DEVICE)
+    if (ctx->device == idx || ctx->device == ANY_DEVICE) {
         return 0;
+    }
 
 fail3:
-    if ((ret = hjkenc_push_context(avctx)) < 0)
+    if ((ret = hjkenc_push_context(avctx)) < 0) {
         return ret;
+    }
 
     p_hjkenc->hjkEncDestroyEncoder(ctx->hjkencoder);
     ctx->hjkencoder = NULL;
 
-    if ((ret = hjkenc_pop_context(avctx)) < 0)
+    if ((ret = hjkenc_pop_context(avctx)) < 0) {
         return ret;
+    }
 
 fail2:
     CHECK_HJ(dl_fn->hjk_dl->hjCtxDestroy(ctx->hjk_context_internal));
@@ -493,34 +517,39 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
 
 
     if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11 || avctx->hw_frames_ctx || avctx->hw_device_ctx) {
-        AVHWFramesContext   *frames_ctx;
-        AVHWDeviceContext   *hwdev_ctx;
+        AVHWFramesContext   *frames_ctx = NULL;
+        AVHWDeviceContext   *hwdev_ctx = NULL;
         AVHJKDeviceContext *hjk_device_hwctx = NULL;
 #if CONFIG_D3D11VA
         AVD3D11VADeviceContext *d3d11_device_hwctx = NULL;
 #endif
-        int ret;
+        int ret = 0;
 
         if (avctx->hw_frames_ctx) {
             frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
-            if (frames_ctx->format == AV_PIX_FMT_HJK)
+            if (frames_ctx->format == AV_PIX_FMT_HJK) {
                 hjk_device_hwctx = frames_ctx->device_ctx->hwctx;
+            }
 #if CONFIG_D3D11VA
-            else if (frames_ctx->format == AV_PIX_FMT_D3D11)
+            else if (frames_ctx->format == AV_PIX_FMT_D3D11) {
                 d3d11_device_hwctx = frames_ctx->device_ctx->hwctx;
+            }
 #endif
-            else
+            else {
                 return AVERROR(EINVAL);
+            }
         } else if (avctx->hw_device_ctx) {
             hwdev_ctx = (AVHWDeviceContext*)avctx->hw_device_ctx->data;
             if (hwdev_ctx->type == AV_HWDEVICE_TYPE_HJK)
                 hjk_device_hwctx = hwdev_ctx->hwctx;
 #if CONFIG_D3D11VA
-            else if (hwdev_ctx->type == AV_HWDEVICE_TYPE_D3D11VA)
+            else if (hwdev_ctx->type == AV_HWDEVICE_TYPE_D3D11VA) {
                 d3d11_device_hwctx = hwdev_ctx->hwctx;
+            }
 #endif
-            else
+            else {
                 return AVERROR(EINVAL);
+            }
         } else {
             return AVERROR(EINVAL);
         }
@@ -537,8 +566,9 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
 #endif
 
         ret = hjkenc_open_session(avctx);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         ret = hjkenc_check_capabilities(avctx);
         if (ret < 0) {
@@ -546,13 +576,15 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
             return ret;
         }
     } else {
-        int i, nb_devices = 0;
+        int i = 0, nb_devices = 0;
 
-        if (CHECK_HJ(dl_fn->hjk_dl->hjInit(0)) < 0)
+        if (CHECK_HJ(dl_fn->hjk_dl->hjInit(0)) < 0) {
             return AVERROR_UNKNOWN;
+        }
 
-        if (CHECK_HJ(dl_fn->hjk_dl->hjDeviceGetCount(&nb_devices)) < 0)
+        if (CHECK_HJ(dl_fn->hjk_dl->hjDeviceGetCount(&nb_devices)) < 0) {
             return AVERROR_UNKNOWN;
+        }
 
         if (!nb_devices) {
             av_log(avctx, AV_LOG_FATAL, "No HJK capable devices found\n");
@@ -563,12 +595,14 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
 
         dl_fn->hjkenc_device_count = 0;
         for (i = 0; i < nb_devices; ++i) {
-            if ((hjkenc_check_device(avctx, i)) >= 0 && ctx->device != LIST_DEVICES)
+            if ((hjkenc_check_device(avctx, i)) >= 0 && ctx->device != LIST_DEVICES) {
                 return 0;
+            }
         }
 
-        if (ctx->device == LIST_DEVICES)
+        if (ctx->device == LIST_DEVICES) {
             return AVERROR_EXIT;
+        }
 
         if (!dl_fn->hjkenc_device_count) {
             av_log(avctx, AV_LOG_FATAL, "No HJKENC capable devices found\n");
@@ -630,7 +664,7 @@ static av_cold void set_constqp(AVCodecContext *avctx)
         if (ctx->init_qp_i >= 0 && ctx->init_qp_b >= 0) {
             rc->constQP.qpIntra = ctx->init_qp_i;
             rc->constQP.qpInterB = ctx->init_qp_b;
-        } else if (avctx->i_quant_factor != 0.0 && avctx->b_quant_factor != 0.0) {
+        } else if (FNEQ(avctx->i_quant_factor, 0.0) && FNEQ(avctx->b_quant_factor, 0.0)) {
             rc->constQP.qpIntra = av_clip(
                 rc->constQP.qpInterP * fabs(avctx->i_quant_factor) + avctx->i_quant_offset + 0.5, 0, 51);
             rc->constQP.qpInterB = av_clip(
@@ -641,10 +675,12 @@ static av_cold void set_constqp(AVCodecContext *avctx)
         }
     } else if (ctx->cqp >= 0) {
         rc->constQP.qpInterP = rc->constQP.qpInterB = rc->constQP.qpIntra = ctx->cqp;
-        if (avctx->b_quant_factor != 0.0)
+        if (FNEQ(avctx->b_quant_factor , 0.0)) {
             rc->constQP.qpInterB = av_clip(ctx->cqp * fabs(avctx->b_quant_factor) + avctx->b_quant_offset + 0.5, 0, 51);
-        if (avctx->i_quant_factor != 0.0)
+        }
+        if (FNEQ(avctx->i_quant_factor , 0.0)) {
             rc->constQP.qpIntra = av_clip(ctx->cqp * fabs(avctx->i_quant_factor) + avctx->i_quant_offset + 0.5, 0, 51);
+        }
     }
 
     avctx->qmin = -1;
@@ -655,7 +691,7 @@ static av_cold void set_vbr(AVCodecContext *avctx)
 {
     HjkencContext *ctx = avctx->priv_data;
     HJK_ENC_RC_PARAMS *rc = &ctx->encode_config.rcParams;
-    int qp_inter_p;
+    int qp_inter_p = 0;
 
     if (avctx->qmin >= 0 && avctx->qmax >= 0) {
         rc->enableMinQP = 1;
@@ -691,7 +727,7 @@ static av_cold void set_vbr(AVCodecContext *avctx)
     }
 
     if (ctx->init_qp_i < 0) {
-        if (avctx->i_quant_factor != 0.0 && avctx->b_quant_factor != 0.0) {
+        if (FNEQ(avctx->i_quant_factor , 0.0) && FNEQ(avctx->b_quant_factor , 0.0)) {
             rc->initialRCQP.qpIntra = av_clip(
                 rc->initialRCQP.qpInterP * fabs(avctx->i_quant_factor) + avctx->i_quant_offset + 0.5, 0, 51);
         } else {
@@ -702,7 +738,7 @@ static av_cold void set_vbr(AVCodecContext *avctx)
     }
 
     if (ctx->init_qp_b < 0) {
-        if (avctx->i_quant_factor != 0.0 && avctx->b_quant_factor != 0.0) {
+        if (FNEQ(avctx->i_quant_factor , 0.0) && FNEQ(avctx->b_quant_factor , 0.0)) {
             rc->initialRCQP.qpInterB = av_clip(
                 rc->initialRCQP.qpInterP * fabs(avctx->b_quant_factor) + avctx->b_quant_offset + 0.5, 0, 51);
         } else {
@@ -786,8 +822,9 @@ static av_cold int hjkenc_recalc_surfaces(AVCodecContext *avctx)
                    "increasing used surfaces %d -> %d\n", ctx->nb_surfaces, nb_surfaces);
             ctx->nb_surfaces = FFMAX(ctx->nb_surfaces, nb_surfaces);
         }
-        else if (ctx->nb_surfaces <= 0)
+        else if (ctx->nb_surfaces <= 0) {
             ctx->nb_surfaces = nb_surfaces;
+        }
         // otherwise use user specified value
     }
 
@@ -801,11 +838,13 @@ static av_cold void hjkenc_setup_rate_control(AVCodecContext *avctx)
 {
     HjkencContext *ctx = avctx->priv_data;
 
-    if (avctx->global_quality > 0)
+    if (avctx->global_quality > 0) {
         av_log(avctx, AV_LOG_WARNING, "Using global_quality with hjkenc is deprecated. Use qp instead.\n");
+    }
 
-    if (ctx->cqp < 0 && avctx->global_quality > 0)
+    if (ctx->cqp < 0 && avctx->global_quality > 0) {
         ctx->cqp = avctx->global_quality;
+    }
 
     if (avctx->bit_rate > 0) {
         ctx->encode_config.rcParams.averageBitRate = avctx->bit_rate;
@@ -813,17 +852,21 @@ static av_cold void hjkenc_setup_rate_control(AVCodecContext *avctx)
         ctx->encode_config.rcParams.maxBitRate = ctx->encode_config.rcParams.averageBitRate;
     }
 
-    if (avctx->rc_max_rate > 0)
+    if (avctx->rc_max_rate > 0) {
         ctx->encode_config.rcParams.maxBitRate = avctx->rc_max_rate;
+    }
 
     if (ctx->rc < 0) {
-        if (ctx->flags & HJKENC_ONE_PASS)
+        if (ctx->flags & HJKENC_ONE_PASS) {
             ctx->twopass = 0;
-        if (ctx->flags & HJKENC_TWO_PASSES)
+        }
+        if (ctx->flags & HJKENC_TWO_PASSES) {
             ctx->twopass = 1;
+        }
 
-        if (ctx->twopass < 0)
+        if (ctx->twopass < 0) {
             ctx->twopass = (ctx->flags & HJKENC_LOWLATENCY) != 0;
+        }
 
         if (ctx->cbr) {
             if (ctx->twopass) {
@@ -901,14 +944,15 @@ static av_cold void hjkenc_setup_rate_control(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_VERBOSE, "Strict GOP target enabled.\n");
     }
 
-    if (ctx->nonref_p)
+    if (ctx->nonref_p) {
         ctx->encode_config.rcParams.enableNonRefP = 1;
+    }
 
-    if (ctx->zerolatency)
+    if (ctx->zerolatency) {
         ctx->encode_config.rcParams.zeroReorderDelay = 1;
+    }
 
-    if (ctx->quality)
-    {
+    if (ctx->quality) {
         //convert from float to fixed point 8.8
         int tmp_quality = (int)(ctx->quality * 256.0f);
         ctx->encode_config.rcParams.targetQuality = (uint8_t)(tmp_quality >> 8);
@@ -998,8 +1042,9 @@ static av_cold int hjkenc_setup_mjpeg_config(AVCodecContext *avctx)
 
     mjpeg->level = ctx->level;
 
-    if (ctx->coder >= 0)
+    if (ctx->coder >= 0) {
         mjpeg->entropyCodingMode = ctx->coder;
+    }
 
 #ifdef HJKENC_HAVE_BFRAME_REF_MODE
     mjpeg->useBFramesAsRef = ctx->b_ref_mode;
@@ -1106,7 +1151,7 @@ static av_cold int hjkenc_setup_codec_config(AVCodecContext *avctx)
 }
 
 static void compute_dar(AVCodecContext *avctx, int *dw, int *dh) {
-    int sw, sh;
+    int sw = 0, sh = 0;
 
     sw = avctx->width;
     sh = avctx->height;
@@ -1127,9 +1172,9 @@ static av_cold int hjkenc_setup_encoder(AVCodecContext *avctx)
 
     HJK_ENC_PRESET_CONFIG preset_config = { 0 };
     HJKENCSTATUS hjk_status = HJK_ENC_SUCCESS;
-    AVCPBProperties *cpb_props;
+    AVCPBProperties *cpb_props = NULL;
     int res = 0;
-    int dw, dh;
+    int dw = 0, dh = 0;
 
     ctx->encode_config.version = HJK_ENC_CONFIG_VER;
     ctx->init_encode_params.version = HJK_ENC_INITIALIZE_PARAMS_VER;
@@ -1148,8 +1193,9 @@ static av_cold int hjkenc_setup_encoder(AVCodecContext *avctx)
                                                     ctx->init_encode_params.encodeGUID,
                                                     ctx->init_encode_params.presetGUID,
                                                     &preset_config);
-    if (hjk_status != HJK_ENC_SUCCESS)
+    if (hjk_status != HJK_ENC_SUCCESS) {
         return hjkenc_print_error(avctx, hjk_status, "Cannot get the preset configuration");
+    }
 
     memcpy(&ctx->encode_config, &preset_config.presetCfg, sizeof(ctx->encode_config));
 
@@ -1165,8 +1211,9 @@ static av_cold int hjkenc_setup_encoder(AVCodecContext *avctx)
     ctx->init_encode_params.enableEncodeAsync = 0;
     ctx->init_encode_params.enablePTD = 1;
 
-    if (ctx->weighted_pred == 1)
+    if (ctx->weighted_pred == 1) {
         ctx->init_encode_params.enableWeightedPrediction = 1;
+    }
 
     if (ctx->bluray_compat) {
         ctx->aud = 1;
@@ -1209,32 +1256,38 @@ static av_cold int hjkenc_setup_encoder(AVCodecContext *avctx)
     }
 
     res = hjkenc_setup_codec_config(avctx);
-    if (res)
+    if (res) {
         return res;
+    }
 
     res = hjkenc_push_context(avctx);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
 
     hjk_status = p_hjkenc->hjkEncInitializeEncoder(ctx->hjkencoder, &ctx->init_encode_params);
 
     res = hjkenc_pop_context(avctx);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
 
     if (hjk_status != HJK_ENC_SUCCESS) {
         return hjkenc_print_error(avctx, hjk_status, "InitializeEncoder failed");
     }
 
-    if (ctx->encode_config.frameIntervalP > 1)
+    if (ctx->encode_config.frameIntervalP > 1) {
         avctx->has_b_frames = 2;
+    }
 
-    if (ctx->encode_config.rcParams.averageBitRate > 0)
+    if (ctx->encode_config.rcParams.averageBitRate > 0) {
         avctx->bit_rate = ctx->encode_config.rcParams.averageBitRate;
+    }
 
     cpb_props = ff_add_cpb_side_data(avctx);
-    if (!cpb_props)
+    if (!cpb_props) {
         return AVERROR(ENOMEM);
+    }
     cpb_props->max_bitrate = ctx->encode_config.rcParams.maxBitRate;
     cpb_props->avg_bitrate = avctx->bit_rate;
     cpb_props->buffer_size = ctx->encode_config.rcParams.vbvBufferSize;
@@ -1272,14 +1325,15 @@ static av_cold int hjkenc_alloc_surface(AVCodecContext *avctx, int idx)
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
     HjkencSurface* tmp_surface = &ctx->surfaces[idx];
 
-    HJKENCSTATUS hjk_status;
+    HJKENCSTATUS hjk_status = 0;
     HJK_ENC_CREATE_BITSTREAM_BUFFER allocOut = { 0 };
     allocOut.version = HJK_ENC_CREATE_BITSTREAM_BUFFER_VER;
 
     if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         ctx->surfaces[idx].in_ref = av_frame_alloc();
-        if (!ctx->surfaces[idx].in_ref)
+        if (!ctx->surfaces[idx].in_ref) {
             return AVERROR(ENOMEM);
+        }
     } else {
         HJK_ENC_CREATE_INPUT_BUFFER allocSurf = { 0 };
 
@@ -1308,8 +1362,9 @@ static av_cold int hjkenc_alloc_surface(AVCodecContext *avctx, int idx)
     hjk_status = p_hjkenc->hjkEncCreateBitstreamBuffer(ctx->hjkencoder, &allocOut);
     if (hjk_status != HJK_ENC_SUCCESS) {
         int err = hjkenc_print_error(avctx, hjk_status, "CreateBitstreamBuffer failed");
-        if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11)
+        if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11) {
             p_hjkenc->hjkEncDestroyInputBuffer(ctx->hjkencoder, ctx->surfaces[idx].input_surface);
+        }
         av_frame_free(&ctx->surfaces[idx].in_ref);
         return err;
     }
@@ -1325,40 +1380,48 @@ static av_cold int hjkenc_alloc_surface(AVCodecContext *avctx, int idx)
 static av_cold int hjkenc_setup_surfaces(AVCodecContext *avctx)
 {
     HjkencContext *ctx = avctx->priv_data;
-    int i, res = 0, res2;
+    int i = 0, res = 0, res2 = 0;
 
     ctx->surfaces = av_mallocz_array(ctx->nb_surfaces, sizeof(*ctx->surfaces));
-    if (!ctx->surfaces)
+    if (!ctx->surfaces) {
         return AVERROR(ENOMEM);
+    }
 
     ctx->timestamp_list = av_fifo_alloc(ctx->nb_surfaces * sizeof(int64_t));
-    if (!ctx->timestamp_list)
+    if (!ctx->timestamp_list) {
         return AVERROR(ENOMEM);
+    }
 
     ctx->unused_surface_queue = av_fifo_alloc(ctx->nb_surfaces * sizeof(HjkencSurface*));
-    if (!ctx->unused_surface_queue)
+    if (!ctx->unused_surface_queue) {
         return AVERROR(ENOMEM);
+    }
 
     ctx->output_surface_queue = av_fifo_alloc(ctx->nb_surfaces * sizeof(HjkencSurface*));
-    if (!ctx->output_surface_queue)
+    if (!ctx->output_surface_queue) {
         return AVERROR(ENOMEM);
+    }
     ctx->output_surface_ready_queue = av_fifo_alloc(ctx->nb_surfaces * sizeof(HjkencSurface*));
-    if (!ctx->output_surface_ready_queue)
+    if (!ctx->output_surface_ready_queue) {
         return AVERROR(ENOMEM);
+    }
 
     res = hjkenc_push_context(avctx);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
 
     for (i = 0; i < ctx->nb_surfaces; i++) {
-        if ((res = hjkenc_alloc_surface(avctx, i)) < 0)
+        if ((res = hjkenc_alloc_surface(avctx, i)) < 0) {
             goto fail;
+        }
     }
 
 fail:
     res2 = hjkenc_pop_context(avctx);
-    if (res2 < 0)
+    if (res2 < 0) {
         return res2;
+    }
 
     return res;
 }
@@ -1369,7 +1432,7 @@ static av_cold int hjkenc_setup_extradata(AVCodecContext *avctx)
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
 
-    HJKENCSTATUS hjk_status;
+    HJKENCSTATUS hjk_status = 0;
     uint32_t outSize = 0;
     char tmpHeader[256];
     HJK_ENC_SEQUENCE_PARAM_PAYLOAD payload = { 0 };
@@ -1401,7 +1464,7 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
     HjkencContext *ctx               = avctx->priv_data;
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
-    int i, res;
+    int i = 0, res = 0;
 
     /* the encoder has to be flushed before it can be closed */
     if (ctx->hjkencoder) {
@@ -1409,8 +1472,9 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
                                             .encodePicFlags = HJK_ENC_PIC_FLAG_EOS };
 
         res = hjkenc_push_context(avctx);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
 
         p_hjkenc->hjkEncEncodePicture(ctx->hjkencoder, &params);
     }
@@ -1422,18 +1486,21 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
 
     if (ctx->surfaces && (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11)) {
         for (i = 0; i < ctx->nb_registered_frames; i++) {
-            if (ctx->registered_frames[i].mapped)
+            if (ctx->registered_frames[i].mapped) {
                 p_hjkenc->hjkEncUnmapInputResource(ctx->hjkencoder, ctx->registered_frames[i].in_map.mappedResource);
-            if (ctx->registered_frames[i].regptr)
+            }
+            if (ctx->registered_frames[i].regptr) {
                 p_hjkenc->hjkEncUnregisterResource(ctx->hjkencoder, ctx->registered_frames[i].regptr);
+            }
         }
         ctx->nb_registered_frames = 0;
     }
 
     if (ctx->surfaces) {
         for (i = 0; i < ctx->nb_surfaces; ++i) {
-            if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11)
+            if (avctx->pix_fmt != AV_PIX_FMT_HJK && avctx->pix_fmt != AV_PIX_FMT_D3D11) {
                 p_hjkenc->hjkEncDestroyInputBuffer(ctx->hjkencoder, ctx->surfaces[i].input_surface);
+            }
             av_frame_free(&ctx->surfaces[i].in_ref);
             p_hjkenc->hjkEncDestroyBitstreamBuffer(ctx->hjkencoder, ctx->surfaces[i].output_surface);
         }
@@ -1445,8 +1512,9 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
         p_hjkenc->hjkEncDestroyEncoder(ctx->hjkencoder);
 
         res = hjkenc_pop_context(avctx);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
     }
     ctx->hjkencoder = NULL;
 
@@ -1474,11 +1542,11 @@ av_cold int ff_hjkenc_encode_close(AVCodecContext *avctx)
 av_cold int ff_hjkenc_encode_init(AVCodecContext *avctx)
 {
     HjkencContext *ctx = avctx->priv_data;
-    int ret;
+    int ret = 0;
 
     //av_log_set_level(AV_LOG_TRACE);
     if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
-        AVHWFramesContext *frames_ctx;
+        AVHWFramesContext *frames_ctx = NULL;
         if (!avctx->hw_frames_ctx) {
             av_log(avctx, AV_LOG_ERROR,
                    "hw_frames_ctx must be set when using GPU frames as input\n");
@@ -1495,21 +1563,26 @@ av_cold int ff_hjkenc_encode_init(AVCodecContext *avctx)
         ctx->data_pix_fmt = avctx->pix_fmt;
     }
 
-    if ((ret = hjkenc_load_libraries(avctx)) < 0)
+    if ((ret = hjkenc_load_libraries(avctx)) < 0) {
         return ret;
+    }
 
-    if ((ret = hjkenc_setup_device(avctx)) < 0)
+    if ((ret = hjkenc_setup_device(avctx)) < 0) {
         return ret;
+    }
 
-    if ((ret = hjkenc_setup_encoder(avctx)) < 0)
+    if ((ret = hjkenc_setup_encoder(avctx)) < 0) {
         return ret;
+    }
 
-    if ((ret = hjkenc_setup_surfaces(avctx)) < 0)
+    if ((ret = hjkenc_setup_surfaces(avctx)) < 0) {
         return ret;
+    }
 
     if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
-        if ((ret = hjkenc_setup_extradata(avctx)) < 0)
+        if ((ret = hjkenc_setup_extradata(avctx)) < 0) {
             return ret;
+        }
     }
 
     return 0;
@@ -1517,11 +1590,12 @@ av_cold int ff_hjkenc_encode_init(AVCodecContext *avctx)
 
 static HjkencSurface *get_free_frame(HjkencContext *ctx)
 {
-    HjkencSurface *tmp_surf;
+    HjkencSurface *tmp_surf = NULL;
 
-    if (!(av_fifo_size(ctx->unused_surface_queue) > 0))
+    if (!(av_fifo_size(ctx->unused_surface_queue) > 0)) {
         // queue empty
         return NULL;
+    }
 
     av_fifo_generic_read(ctx->unused_surface_queue, &tmp_surf, sizeof(tmp_surf), NULL);
     return tmp_surf;
@@ -1537,18 +1611,21 @@ static int hjkenc_copy_frame(AVCodecContext *avctx, HjkencSurface *hjk_surface,
         lock_buffer_params->pitch
     };
     uint8_t *dst_data[4];
-    int ret;
+    int ret = 0;
 
-    if (frame->format == AV_PIX_FMT_YUV420P)
+    if (frame->format == AV_PIX_FMT_YUV420P) {
         dst_linesize[1] = dst_linesize[2] >>= 1;
+    }
 
     ret = av_image_fill_pointers(dst_data, frame->format, hjk_surface->height,
                                  lock_buffer_params->bufferDataPtr, dst_linesize);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
-    if (frame->format == AV_PIX_FMT_YUV420P)
+    if (frame->format == AV_PIX_FMT_YUV420P) {
         FFSWAP(uint8_t*, dst_data[1], dst_data[2]);
+    }
 
     av_image_copy(dst_data, dst_linesize,
                   (const uint8_t**)frame->data, frame->linesize, frame->format,
@@ -1562,9 +1639,9 @@ static int hjkenc_find_free_reg_resource(AVCodecContext *avctx)
     HjkencContext *ctx = avctx->priv_data;
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
-    HJKENCSTATUS hjk_status;
+    HJKENCSTATUS hjk_status = 0;
 
-    int i, first_round;
+    int i = 0, first_round = 0;
 
         hjk_debug("ctx->nb_registered_frames=%d\n", ctx->nb_registered_frames);
     if (ctx->nb_registered_frames == FF_ARRAY_ELEMS(ctx->registered_frames)) {
@@ -1573,11 +1650,13 @@ static int hjkenc_find_free_reg_resource(AVCodecContext *avctx)
             for (i = 0; i < ctx->nb_registered_frames; i++) {
                 if (!ctx->registered_frames[i].mapped) {
                     if (ctx->registered_frames[i].regptr) {
-                        if (first_round)
+                        if (first_round) {
                             continue;
+                        }
                         hjk_status = p_hjkenc->hjkEncUnregisterResource(ctx->hjkencoder, ctx->registered_frames[i].regptr);
-                        if (hjk_status != HJK_ENC_SUCCESS)
+                        if (hjk_status != HJK_ENC_SUCCESS) {
                             return hjkenc_print_error(avctx, hjk_status, "Failed unregistering unused input resource");
+                        }
                         ctx->registered_frames[i].ptr = NULL;
                         ctx->registered_frames[i].regptr = NULL;
                     }
@@ -1601,18 +1680,21 @@ static int hjkenc_register_frame(AVCodecContext *avctx, const AVFrame *frame)
 
     AVHWFramesContext *frames_ctx = (AVHWFramesContext*)frame->hw_frames_ctx->data;
     HJK_ENC_REGISTER_RESOURCE reg;
-    int i, idx, ret;
+    int i = 0, idx = 0, ret = 0;
 
     for (i = 0; i < ctx->nb_registered_frames; i++) {
-        if (avctx->pix_fmt == AV_PIX_FMT_HJK && ctx->registered_frames[i].ptr == frame->data[0])
+        if (avctx->pix_fmt == AV_PIX_FMT_HJK && ctx->registered_frames[i].ptr == frame->data[0]) {
             return i;
-        else if (avctx->pix_fmt == AV_PIX_FMT_D3D11 && ctx->registered_frames[i].ptr == frame->data[0] && ctx->registered_frames[i].ptr_index == (intptr_t)frame->data[1])
+        }
+        else if (avctx->pix_fmt == AV_PIX_FMT_D3D11 && ctx->registered_frames[i].ptr == frame->data[0] && ctx->registered_frames[i].ptr_index == (intptr_t)frame->data[1]) {
             return i;
+        }
     }
 
     idx = hjkenc_find_free_reg_resource(avctx);
-    if (idx < 0)
+    if (idx < 0) {
         return idx;
+    }
 
     reg.version            = HJK_ENC_REGISTER_RESOURCE_VER;
     reg.width              = frames_ctx->width;
@@ -1654,8 +1736,8 @@ static int hjkenc_upload_frame(AVCodecContext *avctx, const AVFrame *frame,
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
 
-    int res;
-    HJKENCSTATUS hjk_status;
+    int res = 0;
+    HJKENCSTATUS hjk_status = 0;
 
     if (avctx->pix_fmt == AV_PIX_FMT_HJK || avctx->pix_fmt == AV_PIX_FMT_D3D11) {
         int reg_idx = hjkenc_register_frame(avctx, frame);
@@ -1665,8 +1747,9 @@ static int hjkenc_upload_frame(AVCodecContext *avctx, const AVFrame *frame,
         }
 
         res = av_frame_ref(hjkenc_frame->in_ref, frame);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
 
         if (!ctx->registered_frames[reg_idx].mapped) {
             ctx->registered_frames[reg_idx].in_map.version = HJK_ENC_MAP_INPUT_RESOURCE_VER;
@@ -1752,8 +1835,9 @@ static inline void timestamp_queue_enqueue(AVFifoBuffer* queue, int64_t timestam
 static inline int64_t timestamp_queue_dequeue(AVFifoBuffer* queue)
 {
     int64_t timestamp = AV_NOPTS_VALUE;
-    if (av_fifo_size(queue) > 0)
+    if (av_fifo_size(queue) > 0) {
         av_fifo_generic_read(queue, &timestamp, sizeof(timestamp), NULL);
+    }
 
     return timestamp;
 }
@@ -1771,16 +1855,18 @@ static int hjkenc_set_timestamp(AVCodecContext *avctx,
     if (avctx->max_b_frames > 0 && !ctx->first_packet_output &&
         ctx->initial_pts[1] != AV_NOPTS_VALUE) {
         int64_t ts0 = ctx->initial_pts[0], ts1 = ctx->initial_pts[1];
-        int64_t delta;
+        int64_t delta = 0;
 
         if ((ts0 < 0 && ts1 > INT64_MAX + ts0) ||
-            (ts0 > 0 && ts1 < INT64_MIN + ts0))
+            (ts0 > 0 && ts1 < INT64_MIN + ts0)) {
             return AVERROR(ERANGE);
+        }
         delta = ts1 - ts0;
 
         if ((delta < 0 && ts0 > INT64_MAX + delta) ||
-            (delta > 0 && ts0 < INT64_MIN + delta))
+            (delta > 0 && ts0 < INT64_MIN + delta)) {
             return AVERROR(ERANGE);
+        }
         pkt->dts = ts0 - delta;
 
         ctx->first_packet_output = 1;
@@ -1798,13 +1884,13 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, HjkencSu
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &dl_fn->hjkenc_funcs;
 
-    uint32_t slice_mode_data;
+    uint32_t slice_mode_data = 0;
     uint32_t *slice_offsets = NULL;
     HJK_ENC_LOCK_BITSTREAM lock_params = { 0 };
-    HJKENCSTATUS hjk_status;
+    HJKENCSTATUS hjk_status = 0;
     int res = 0;
 
-    enum AVPictureType pict_type;
+    enum AVPictureType pict_type = 0;
 
     switch (avctx->codec->id) {
     case AV_CODEC_ID_MJPEG:
@@ -1902,8 +1988,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
         (lock_params.frameAvgQP - 1) * FF_QP2LAMBDA, NULL, 0, pict_type);
 
     res = hjkenc_set_timestamp(avctx, &lock_params, pkt);
-    if (res < 0)
+    if (res < 0) {
         goto error2;
+    }
 
     av_free(slice_offsets);
 
@@ -1921,19 +2008,21 @@ error2:
 static int output_ready(AVCodecContext *avctx, int flush)
 {
     HjkencContext *ctx = avctx->priv_data;
-    int nb_ready, nb_pending;
+    int nb_ready = 0, nb_pending = 0;
 
     /* when B-frames are enabled, we wait for two initial timestamps to
      * calculate the first dts */
     if (!flush && avctx->max_b_frames > 0 &&
-        (ctx->initial_pts[0] == AV_NOPTS_VALUE || ctx->initial_pts[1] == AV_NOPTS_VALUE))
+        (ctx->initial_pts[0] == AV_NOPTS_VALUE || ctx->initial_pts[1] == AV_NOPTS_VALUE)) {
         return 0;
+    }
 
     nb_ready   = av_fifo_size(ctx->output_surface_ready_queue)   / sizeof(HjkencSurface*);
     nb_pending = av_fifo_size(ctx->output_surface_queue)         / sizeof(HjkencSurface*);
     hjk_debug("nb_ready=%d nb_pending=%d flush=%d\n", nb_ready, nb_pending, flush);
-    if (flush)
+    if (flush) {
         return nb_ready > 0;
+    }
     return (nb_ready > 0) && (nb_ready + nb_pending >= ctx->async_depth);
 }
 
@@ -1941,13 +2030,13 @@ static void reconfig_encoder(AVCodecContext *avctx, const AVFrame *frame)
 {
     HjkencContext *ctx = avctx->priv_data;
     HJK_ENCODE_API_FUNCTION_LIST *p_hjkenc = &ctx->hjkenc_dload_funcs.hjkenc_funcs;
-    HJKENCSTATUS ret;
+    HJKENCSTATUS ret = 0;
 
     HJK_ENC_RECONFIGURE_PARAMS params = { 0 };
     int needs_reconfig = 0;
     int needs_encode_config = 0;
     int reconfig_bitrate = 0, reconfig_dar = 0;
-    int dw, dh;
+    int dw = 0, dh = 0;
 
     params.version = HJK_ENC_RECONFIGURE_PARAMS_VER;
     params.reInitEncodeParams = ctx->init_encode_params;
@@ -2006,8 +2095,9 @@ static void reconfig_encoder(AVCodecContext *avctx, const AVFrame *frame)
         }
     }
 
-    if (!needs_encode_config)
+    if (!needs_encode_config) {
         params.reInitEncodeParams.encodeConfig = NULL;
+    }
 
     if (needs_reconfig) {
         ret = p_hjkenc->hjkEncReconfigureEncoder(ctx->hjkencoder, &params);
@@ -2031,11 +2121,11 @@ static void reconfig_encoder(AVCodecContext *avctx, const AVFrame *frame)
 
 int ff_hjkenc_send_frame(AVCodecContext *avctx, const AVFrame *frame)
 {
-    HJKENCSTATUS hjk_status;
-    HjkencSurface *tmp_out_surf, *in_surf;
-    int res, res2;
+    HJKENCSTATUS hjk_status = 0;
+    HjkencSurface *tmp_out_surf = NULL, *in_surf = NULL;
+    int res = 0, res2 = 0;
     HJK_ENC_SEI_PAYLOAD *sei_data = NULL;
-    size_t sei_size;
+    size_t sei_size = 0;
 
     HjkencContext *ctx = avctx->priv_data;
     HjkencDynLoadFunctions *dl_fn = &ctx->hjkenc_dload_funcs;
@@ -2101,10 +2191,11 @@ int ff_hjkenc_send_frame(AVCodecContext *avctx, const AVFrame *frame)
         pic_params.outputBitstream = in_surf->output_surface;
 
         if (avctx->flags & AV_CODEC_FLAG_INTERLACED_DCT) {
-            if (frame->top_field_first)
+            if (frame->top_field_first) {
                 pic_params.pictureStruct = HJK_ENC_PIC_STRUCT_FIELD_TOP_BOTTOM;
-            else
+            } else {
                 pic_params.pictureStruct = HJK_ENC_PIC_STRUCT_FIELD_BOTTOM_TOP;
+            }
         } else {
             pic_params.pictureStruct = HJK_ENC_PIC_STRUCT_FRAME;
         }
@@ -2159,10 +2250,11 @@ int ff_hjkenc_send_frame(AVCodecContext *avctx, const AVFrame *frame)
         av_fifo_generic_write(ctx->output_surface_queue, &in_surf, sizeof(in_surf), NULL);
         timestamp_queue_enqueue(ctx->timestamp_list, frame->pts);
 
-        if (ctx->initial_pts[0] == AV_NOPTS_VALUE)
+        if (ctx->initial_pts[0] == AV_NOPTS_VALUE) {
             ctx->initial_pts[0] = frame->pts;
-        else if (ctx->initial_pts[1] == AV_NOPTS_VALUE)
+        } else if (ctx->initial_pts[1] == AV_NOPTS_VALUE) {
             ctx->initial_pts[1] = frame->pts;
+        }
     }
 
     /* all the pending buffers are now ready for output */
@@ -2179,8 +2271,8 @@ int ff_hjkenc_send_frame(AVCodecContext *avctx, const AVFrame *frame)
 
 int ff_hjkenc_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
 {
-    HjkencSurface *tmp_out_surf;
-    int res, res2;
+    HjkencSurface *tmp_out_surf = NULL;
+    int res = 0, res2 = 0;
 
     HjkencContext *ctx = avctx->priv_data;
 
@@ -2230,7 +2322,7 @@ int ff_hjkenc_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                           const AVFrame *frame, int *got_packet)
 {
     HjkencContext *ctx = avctx->priv_data;
-    int res;
+    int res = 0;
 
     if (!ctx->encoder_flushing) {
         res = ff_hjkenc_send_frame(avctx, frame);
