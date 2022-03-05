@@ -1,0 +1,93 @@
+diff --git a/doc/examples/hjkjpg_encode.c b/doc/examples/hjkjpg_encode.c
+index 89f0589..2d0506d 100644
+--- a/doc/examples/hjkjpg_encode.c
++++ b/doc/examples/hjkjpg_encode.c
+@@ -30,6 +30,10 @@
+  *
+  */
+ 
++#define _GNU_SOURCE      /* See feature_test_macros(7) */
++#include <sys/syscall.h> /* For SYS_xxx definitions */
++#include <unistd.h>
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -207,6 +211,7 @@ int main(int argc, char *argv[])
+ 
+     /* flush encoder */
+     err = encode_write(avctx, NULL, fout);
++    printf("%d %s tid=%d\n", __LINE__, __FUNCTION__, (int)syscall(__NR_gettid));
+     if (err == AVERROR_EOF)
+         err = 0;
+ 
+diff --git a/libavcodec/ffhjkcodec/hjk_api.c b/libavcodec/ffhjkcodec/hjk_api.c
+index 0292c60..14f8520 100644
+--- a/libavcodec/ffhjkcodec/hjk_api.c
++++ b/libavcodec/ffhjkcodec/hjk_api.c
+@@ -1,9 +1,12 @@
+-#include "hjk_api.h" 
+ 
++#define _GNU_SOURCE      /* See feature_test_macros(7) */
++#include <sys/syscall.h> /* For SYS_xxx definitions */
++#include <unistd.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+ 
++#include "hjk_api.h" 
+ /*
+ #0  hj_Init (size=0) at libavutil/../libavcodec/hj_api.c:71
+ #1  0x00007ffffd78beae in hj_device_create (device_ctx=0x84046c0, device=0x0, opts=0x0, flags=0) at libavutil/hwcontext_hjk.c:337
+@@ -627,6 +630,7 @@ static int hjk_EncEncodePicture(void *hj_enc_handle, HJK_ENC_PIC_PARAMS *hj_para
+         return HJK_ENC_ERR_INVALID_PTR;
+     }
+     printf("%d %s \n", __LINE__, __FUNCTION__);
++    printf("%d %s tid=%d\n", __LINE__, __FUNCTION__, (int)syscall(__NR_gettid));
+     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
+     p_hjk_enc_info = p_hjk_enc_info;
+     p_enc_reg_res = (HJK_ENC_REGISTER_RESOURCE *)hj_params->inputBuffer;
+diff --git a/libavcodec/hjkenc_mjpeg.c b/libavcodec/hjkenc_mjpeg.c
+index b40af1a..b981e09 100644
+--- a/libavcodec/hjkenc_mjpeg.c
++++ b/libavcodec/hjkenc_mjpeg.c
+@@ -234,14 +234,14 @@ AVCodec ff_mjpeg_hjkenc_encoder = {
+     .type           = AVMEDIA_TYPE_VIDEO,
+     .id             = AV_CODEC_ID_MJPEG,
+     .init           = ff_hjkenc_encode_init,
+-    .send_frame     = ff_hjkenc_send_frame,
+-    .receive_packet = ff_hjkenc_receive_packet,
++    /*.send_frame     = ff_hjkenc_send_frame,
++    .receive_packet = ff_hjkenc_receive_packet,*/
+     .encode2        = ff_hjkenc_encode_frame,
+     .close          = ff_hjkenc_encode_close,
+     .priv_data_size = sizeof(HjkencContext),
+     .priv_class     = &mjpeg_hjkenc_class,
+     .defaults       = defaults,
+-    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE,
++    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_FRAME_THREADS | AV_CODEC_CAP_INTRA_ONLY,
+     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+     .pix_fmts       = ff_hjkenc_pix_fmts,
+     .wrapper_name   = "hjkenc",
+diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
+index 4a266ec..28e6a9b 100644
+--- a/libavcodec/options_table.h
++++ b/libavcodec/options_table.h
+@@ -48,7 +48,7 @@ static const AVOption avcodec_options[] = {
+        "ratecontrol is willing to deviate from the target average bitrate value. This is not related "
+        "to minimum/maximum bitrate. Lowering tolerance too much has an adverse effect on quality.",
+        OFFSET(bit_rate_tolerance), AV_OPT_TYPE_INT, {.i64 = AV_CODEC_DEFAULT_BITRATE*20 }, 1, INT_MAX, V|E},
+-{"flags", NULL, OFFSET(flags), AV_OPT_TYPE_FLAGS, {.i64 = DEFAULT }, 0, UINT_MAX, V|A|S|E|D, "flags"},
++{"flags", NULL, OFFSET(flags), AV_OPT_TYPE_FLAGS, {.i64 = AV_CODEC_FLAG_QSCALE}, 0, UINT_MAX, V|A|S|E|D, "flags"},
+ {"unaligned", "allow decoders to produce unaligned output", 0, AV_OPT_TYPE_CONST, { .i64 = AV_CODEC_FLAG_UNALIGNED }, INT_MIN, INT_MAX, V | D, "flags" },
+ {"mv4", "use four motion vectors per macroblock (MPEG-4)", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_4MV }, INT_MIN, INT_MAX, V|E, "flags"},
+ {"qpel", "use 1/4-pel motion compensation", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_QPEL }, INT_MIN, INT_MAX, V|E, "flags"},
+@@ -250,7 +250,7 @@ static const AVOption avcodec_options[] = {
+ {"nr", "noise reduction", OFFSET(noise_reduction), AV_OPT_TYPE_INT, {.i64 = DEFAULT }, INT_MIN, INT_MAX, V|E},
+ #endif
+ {"rc_init_occupancy", "number of bits which should be loaded into the rc buffer before decoding starts", OFFSET(rc_initial_buffer_occupancy), AV_OPT_TYPE_INT, {.i64 = DEFAULT }, INT_MIN, INT_MAX, V|E},
+-{"threads", "set the number of threads", OFFSET(thread_count), AV_OPT_TYPE_INT, {.i64 = 1 }, 0, INT_MAX, V|A|E|D, "threads"},
++{"threads", "set the number of threads", OFFSET(thread_count), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, INT_MAX, V|A|E|D, "threads"},
+ {"auto", "autodetect a suitable number of threads to use", 0, AV_OPT_TYPE_CONST, {.i64 = 0 }, INT_MIN, INT_MAX, V|E|D, "threads"},
+ {"dc", "intra_dc_precision", OFFSET(intra_dc_precision), AV_OPT_TYPE_INT, {.i64 = 0 }, -8, 16, V|E},
+ {"nssew", "nsse weight", OFFSET(nsse_weight), AV_OPT_TYPE_INT, {.i64 = 8 }, INT_MIN, INT_MAX, V|E},
