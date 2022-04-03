@@ -50,7 +50,7 @@ typedef void * HJstream;
 typedef struct HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS {
     int version;
     int apiVersion;
-    void *device;
+    void *device; /* --> HJcontext -->HJDevContext */
     int deviceType;
 }HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS;
 
@@ -509,15 +509,10 @@ typedef struct _HJK_ENCODE_API_FUNCTION_LIST{
     int (*hjkEncGetLastErrorString)(void *handle);
 }HJK_ENCODE_API_FUNCTION_LIST;
 
-typedef void *HJcontext;
-/*
-typedef struct _HJcontext {
-
-}HJcontext;
-*/
 
 typedef void * HJdevice;
 typedef void * HJdeviceptr;
+typedef void *HJcontext;
 
 typedef enum {
     HJ_CTX_SCHED_BLOCKING_SYNC,

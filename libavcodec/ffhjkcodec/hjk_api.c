@@ -1,8 +1,21 @@
-#include "hjk_api.h" 
 
+#define _GNU_SOURCE      /* See feature_test_macros(7) */
+#include <sys/syscall.h> /* For SYS_xxx definitions */
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
+
+#include "hjk_api.h" 
+#include "../hjk_log.h"
+
+static pthread_key_t key;
+static pthread_once_t key_once = PTHREAD_ONCE_INIT;
+
+typedef struct _HJDevContext {
+    HJdevice m_hjdevice;
+} HJDevContext;
 
 /*
 #0  hj_Init (size=0) at libavutil/../libavcodec/hj_api.c:71
@@ -13,28 +26,40 @@
 */
 static int hj_Init(int hj_size)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_SUCCESS;
 }
 
 static int hj_DeviceGetCount(int *hj_nb_devices)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    *hj_nb_devices = 1;
 
     return HJK_SUCCESS;
 }
 
 static int hj_DeviceGet(HJdevice * hj_device, int hj_idx)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+
+    if (hj_device == NULL) {
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
+
+    *hj_device = (void *)malloc(1024); /* test */
+    if (*hj_device == NULL) {
+        return HJK_ENC_ERR_OUT_OF_MEMORY;
+    }
+
+    hjk_debug("hj_device=%p\n", *hj_device);
 
     return HJK_SUCCESS;
 }
 
 static int hj_DeviceGetName(char *dev_name, int dev_name_size, HJdevice hj_device)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == dev_name || dev_name_size <= 0) {
         return HJK_ENC_ERR_INVALID_PARAM;
@@ -47,8 +72,9 @@ static int hj_DeviceGetName(char *dev_name, int dev_name_size, HJdevice hj_devic
 static int hj_DeviceComputeCapability(int *dev_major, int *dev_minor,
 								  HJdevice hj_device)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
-
+    hjk_debug(" \n");
+    *dev_major = 3;
+    *dev_minor = 1;
     return HJK_SUCCESS;
 }
 
@@ -62,14 +88,31 @@ static int hj_DeviceComputeCapability(int *dev_major, int *dev_minor,
 static int hj_CtxCreate(HJcontext * hj_context_internal, int hj_size,
 					HJdevice hj_device)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    HJDevContext *hj_dev_context = NULL;
 
-    *hj_context_internal = (HJcontext)malloc(sizeof(HJcontext));
-    if (NULL == *hj_context_internal) {
+    hj_dev_context = (HJDevContext *)malloc(sizeof(HJDevContext));
+    if (NULL == hj_dev_context) {
         return HJK_ENC_ERR_OUT_OF_MEMORY;
     }
+    hj_dev_context->m_hjdevice = hj_device;
+    *hj_context_internal = (HJcontext)hj_dev_context;
 
     return HJK_SUCCESS;
+}
+
+static HJDevContext *get_hjdev_context() 
+{
+    HJcontext  hj_context = NULL;
+    if (NULL == key) {
+        hjk_debug("invalid key=%p", key);
+        return NULL;
+    }
+
+    hj_context = (HJcontext)pthread_getspecific(key);
+    hjk_debug("get hj_context=%p", hj_context);
+
+    return (HJDevContext *)hj_context;
 }
 
 /*
@@ -86,7 +129,8 @@ static int hj_CtxCreate(HJcontext * hj_context_internal, int hj_size,
 */
 static int hj_CtxPopCurrent(HJcontext *hj_dummy)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    get_hjdev_context();
 
     return HJK_SUCCESS;
 }
@@ -105,9 +149,43 @@ static int hj_CtxPopCurrent(HJcontext *hj_dummy)
 */
 static int hj_CtxPushCurrent(HJcontext hj_context)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    if (NULL == hj_context) {
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
+
+    if (NULL == key) {
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
+    if (pthread_getspecific(key) == NULL) {
+        hjk_debug("set hj_context=%p", hj_context);
+        (void)pthread_setspecific(key, hj_context);
+    }
 
     return HJK_SUCCESS;
+}
+
+/* extern interface todo */
+static void *ab_malloc_display_mem(HJdevice ab_device, int ab_size)
+{
+    void *ab_dm = NULL;
+    if (NULL == ab_size) {
+        return NULL;
+    }
+
+    ab_dm = (void *)malloc(ab_size);
+
+    return ab_dm; 
+}
+
+static int ab_free_display_mem(HJdevice ab_device, void *ab_dm)
+{
+    if (NULL == ab_device) {
+        return -1;
+    }
+    free(ab_dm);
+
+    return 0;
 }
 
 /*
@@ -126,13 +204,15 @@ alloc memory for dst AFrame
 */
 static int hj_MemAlloc(HJdeviceptr *hj_data, int hj_size)
 {
-    printf("%d %s size=%d\n", __LINE__, __FUNCTION__, hj_size);
+    hjk_debug(" size=%d", hj_size);
 
     if (hj_size <= 0) {
         return HJK_ENC_ERR_INVALID_PARAM;
     }
 
-    if (NULL == (*hj_data = (HJdeviceptr)malloc(hj_size))) {
+    HJDevContext *hj_dev_context = get_hjdev_context();
+    hjk_debug(" hj_dev_context->m_hjdevice=%p", hj_dev_context->m_hjdevice);
+    if (NULL == (*hj_data = (HJdeviceptr)ab_malloc_display_mem(hj_dev_context->m_hjdevice, hj_size))) {
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
@@ -159,7 +239,7 @@ decode data
 static int hj_Memcpy2DAsync(HJK_MEMCPY2D *hj_cpy, HJstream hj_stream)
 {
     int i = 0;
-    //printf("%d %s height=%d srchost=%p dstdevice=%p\n", __LINE__, __FUNCTION__, hj_cpy->Height, hj_cpy->srcHost, hj_cpy->dstDevice);
+    //hjk_debug(" height=%d srchost=%p dstdevice=%p", hj_cpy->Height, hj_cpy->srcHost, hj_cpy->dstDevice);
     if (hj_cpy->dstPitch < hj_cpy->WidthInBytes ||
         hj_cpy->srcPitch < hj_cpy->WidthInBytes) {
         return HJK_ENC_ERR_INVALID_PARAM;
@@ -168,7 +248,7 @@ static int hj_Memcpy2DAsync(HJK_MEMCPY2D *hj_cpy, HJstream hj_stream)
     if (HJ_MEMORYTYPE_HOST == hj_cpy->srcMemoryType &&
         HJ_MEMORYTYPE_DEVICE == hj_cpy->dstMemoryType) {
         /* src encoder data */
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         for (i = 0; i < hj_cpy->Height; i++) {
             memcpy((uint8_t *)hj_cpy->dstDevice + i * hj_cpy->dstPitch,
                    (uint8_t *)hj_cpy->srcHost + i * hj_cpy->srcPitch,
@@ -176,13 +256,13 @@ static int hj_Memcpy2DAsync(HJK_MEMCPY2D *hj_cpy, HJstream hj_stream)
         }
     } else if (HJ_MEMORYTYPE_DEVICE == hj_cpy->srcMemoryType &&
                HJ_MEMORYTYPE_HOST == hj_cpy->dstMemoryType) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         /* src hj_video_decoder data */
         /* copy decode data to host*/
         /* hj_cpy->srcDevice = hj_devptr; 
         hj_vidMapVideoFrame(HJvideodecoder hj_video_decoder, unsigned int hj_idx,
 						  HJdeviceptr *hj_devptr, unsigned int *pitch,*/
-        printf("%d %s hj_cpy->Height=%d\n", __LINE__, __FUNCTION__, hj_cpy->Height);
+        hjk_debug(" hj_cpy->Height=%d", hj_cpy->Height);
         for (i = 0; i < hj_cpy->Height; i++) {
             memcpy((uint8_t *)hj_cpy->dstHost + i * hj_cpy->dstPitch,
                    (uint8_t *)hj_cpy->srcDevice + i * hj_cpy->srcPitch,
@@ -191,14 +271,14 @@ static int hj_Memcpy2DAsync(HJK_MEMCPY2D *hj_cpy, HJstream hj_stream)
 
 
     } else {
-        printf("%d %s not support data copy\n", __LINE__, __FUNCTION__);
+        hjk_debug(" not support data copy\n");
     }
         return HJK_SUCCESS;
 }
 
 static int hj_StreamSynchronize(HJstream hj_stream)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_SUCCESS;
 }
@@ -217,22 +297,33 @@ static int hj_StreamSynchronize(HJstream hj_stream)
 */
 static int hj_MemFree(HJdeviceptr dev_data)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
-    if (NULL != dev_data) {
-        free(dev_data);
+    if (NULL == dev_data) {
+        return -1;
     }
+
+    HJDevContext *hj_dev_context = get_hjdev_context();
+    hjk_debug(" hj_dev_context->m_hjdevice=%p", hj_dev_context->m_hjdevice);
+    ab_free_display_mem(hj_dev_context->m_hjdevice, dev_data);
 
     return HJK_SUCCESS;
 }
 
 static int hj_CtxDestroy(HJcontext hj_context_internal)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_context_internal) {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
+    }
+
+    HJDevContext *hj_dev_context = (HJDevContext *)hj_context_internal;
+    if (NULL != hj_dev_context->m_hjdevice) {
+        free(hj_dev_context->m_hjdevice);
+        hj_dev_context->m_hjdevice = NULL; 
+        hjk_debug(" \n");
     }
 
     free(hj_context_internal);
@@ -252,7 +343,7 @@ static const struct {
 static HJresult hj_GetErrorName(HJresult hj_error, const char** hj_pstr)
 {
     int i;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     for (i = 0; i < (sizeof(hjenc_internal_errors) / sizeof(hjenc_internal_errors[0])); i++) {
         if (hjenc_internal_errors[i].hjerr == hj_error) {
@@ -270,7 +361,7 @@ static HJresult hj_GetErrorName(HJresult hj_error, const char** hj_pstr)
 static HJresult hj_GetErrorString(HJresult hj_error, const char** hj_pstr)
 {
     int i;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     for (i = 0; i < (sizeof(hjenc_internal_errors) / sizeof(hjenc_internal_errors[0])); i++) {
         if (hjenc_internal_errors[i].hjerr == hj_error) {
             if (hj_pstr)
@@ -302,11 +393,24 @@ static HjkFunctions hj_functions = {
     .hjGetErrorString = hj_GetErrorString,
 };
 
+static void make_key()
+{ 
+    hjk_debug("create key");
+    int ret = 0;
+    ret = pthread_key_create(&key, NULL);
+    hjk_debug("ret=%d", ret);
+    if (key == NULL) {
+        hjk_debug("retry creak key");
+        ret = pthread_key_create(&key, NULL);
+    }
+    hjk_debug("key = %p", key);
+}
 
 int hjk_load_functions(HjkFunctions **hjk_dl, void *avctx)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
+    (void)pthread_once(&key_once, make_key);
     *hjk_dl = &hj_functions;
 
     return HJK_ENC_SUCCESS;
@@ -324,6 +428,7 @@ typedef struct _HjkEncoderInterOut {
 typedef struct _HjkEncoderInfo {
     HJK_ENC_INITIALIZE_PARAMS m_enc_init_params;
     HJK_ENC_REGISTER_RESOURCE m_list_enc_reg_res[HJK_ENC_REGI_RES_NUM];
+    HJK_ENC_OPEN_ENCODE_SESSION_EX_PARAMS m_open_params;
 } HjkEncoderInfo;
 
 /* HJK_ENCODE_API_FUNCTION_LIST start */
@@ -333,7 +438,13 @@ static int hjk_EncOpenEncodeSessionEx(
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    if (NULL == open_params) {
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
+    if (NULL == hj_enc_handle){
+        return HJK_ENC_ERR_INVALID_PTR;
+    }
     p_hjk_enc_info = (HjkEncoderInfo *)malloc(sizeof(HjkEncoderInfo));
     if (NULL == p_hjk_enc_info) {
         return HJK_ENC_ERR_OUT_OF_MEMORY;
@@ -343,6 +454,8 @@ static int hjk_EncOpenEncodeSessionEx(
         p_hjk_enc_info->m_list_enc_reg_res[i].resourceToRegister = NULL;
         p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource = NULL;
     }
+    memcpy(&p_hjk_enc_info->m_open_params, open_params, sizeof(*open_params));
+    hjk_debug(" HJcontext device=%p\n", open_params->device);
     *hj_enc_handle = (void *)p_hjk_enc_info;
 
     return HJK_ENC_SUCCESS;
@@ -350,7 +463,7 @@ static int hjk_EncOpenEncodeSessionEx(
 
 static int hjk_EncGetEncodeGUIDCount(void *hj_enc_handle, int *count)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == count) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -364,7 +477,7 @@ static int hjk_EncGetEncodeGUIDs(void *hj_enc_handle, void *guid, int count,
 							int *ptr_count)
 {
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (count <= 0) {
         return HJK_ENC_ERR_INVALID_PARAM;
@@ -382,7 +495,7 @@ static int hjk_EncGetEncodeCaps(void *hj_enc_handle, int encodeGUID,
 						   HJK_ENC_CAPS_PARAM *caps_params, int *val)
 {
     int ret = HJK_ENC_SUCCESS;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     switch (caps_params->capsToQuery) {
     case HJK_ENC_CAPS_SUPPORT_YUV444_ENCODE:break;
@@ -420,7 +533,7 @@ static int hjk_EncGetEncodePresetConfigEx(void *hj_enc_handle, int encodeGUID,
 									 int presetGUID, int tuningInfo,
 									 HJK_ENC_PRESET_CONFIG *preset_config)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -430,7 +543,7 @@ static int hjk_EncGetEncodePresetConfig(void *hj_enc_handle,
 								   int presetGUID,
 								   HJK_ENC_PRESET_CONFIG *preset_config)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -438,15 +551,18 @@ static int hjk_EncGetEncodePresetConfig(void *hj_enc_handle,
 static int hjk_EncInitializeEncoder(void *hj_enc_handle, HJK_ENC_INITIALIZE_PARAMS *init_encode_params)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    HJDevContext *hj_dev_context = NULL;
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == init_encode_params) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
     }
     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
 
     memcpy(&p_hjk_enc_info->m_enc_init_params, init_encode_params, sizeof(*init_encode_params));
+    hj_dev_context = (HJDevContext *)(p_hjk_enc_info->m_open_params.device);
+    hjk_debug("m_hjdevice=%p", hj_dev_context->m_hjdevice);
 
     return HJK_ENC_SUCCESS;
 }
@@ -454,14 +570,14 @@ static int hjk_EncInitializeEncoder(void *hj_enc_handle, HJK_ENC_INITIALIZE_PARA
 static int hjk_EncSetIOHjkStreams(void *hj_enc_handle, HJstream *hj_stream,
 							  HJstream *hj_stream1)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
 
 static int hjk_EncCreateInputBuffer(void *hj_enc_handle, HJK_ENC_CREATE_INPUT_BUFFER *allocSurf)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -479,10 +595,10 @@ static int hjk_EncCreateBitstreamBuffer(void *hj_enc_handle, HJK_ENC_CREATE_BITS
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
     int out_size = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == allocOut) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
     }
     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
@@ -526,9 +642,9 @@ static int hjk_EncCreateBitstreamBuffer(void *hj_enc_handle, HJK_ENC_CREATE_BITS
     p_hjk_enc_inter_out->m_enc_data_len = 0;
     allocOut->bitstreamBuffer = p_hjk_enc_inter_out;
     allocOut->size = sizeof(*p_hjk_enc_inter_out);
-    printf("%d %s allocOut->bitstreamBuffer=%p m_enc_out_virtual_addr=%p\n",
-           __LINE__, __FUNCTION__, allocOut->bitstreamBuffer,
-           p_hjk_enc_inter_out->m_enc_out_virtual_addr);
+    hjk_debug(" allocOut->bitstreamBuffer=%p m_enc_out_virtual_addr=%p\n",
+              allocOut->bitstreamBuffer,
+              p_hjk_enc_inter_out->m_enc_out_virtual_addr);
 
     return HJK_ENC_SUCCESS;
 }
@@ -536,7 +652,7 @@ static int hjk_EncCreateBitstreamBuffer(void *hj_enc_handle, HJK_ENC_CREATE_BITS
 static int
 hjk_EncGetSequenceParams(void *hj_enc_handle,
                          HJK_ENC_SEQUENCE_PARAM_PAYLOAD *hj_payload) {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -545,7 +661,7 @@ static int hjk_EncRegisterResource(void *hj_enc_handle, HJK_ENC_REGISTER_RESOURC
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == hj_reg) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -566,7 +682,7 @@ static int hjk_EncRegisterResource(void *hj_enc_handle, HJK_ENC_REGISTER_RESOURC
 
 static int hjk_EncReconfigureEncoder(void *hj_enc_handle, HJK_ENC_RECONFIGURE_PARAMS *hj_params)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -576,7 +692,7 @@ static int hjk_EncMapInputResource(void *hj_enc_handle,
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == hj_in_map) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -587,9 +703,10 @@ static int hjk_EncMapInputResource(void *hj_enc_handle,
         if (p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource ==
             hj_in_map->registeredResource) {
             // find ok, map
-            printf("%d %s map find ok\n", __LINE__, __FUNCTION__);
+            hjk_debug(" map find ok\n");
             hj_in_map->mappedResource =
                 &p_hjk_enc_info->m_list_enc_reg_res[i]; /*.resourceToRegister;*/
+            hj_in_map->mappedBufferFmt = p_hjk_enc_info->m_list_enc_reg_res[i].bufferFormat;
             break;
         }
     }
@@ -598,14 +715,14 @@ static int hjk_EncMapInputResource(void *hj_enc_handle,
 
 static int hjk_EncLockInputBuffer(void *hj_enc_handle, HJK_ENC_LOCK_INPUT_BUFFER *lockBufferParams)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
 
 static int hjk_EncUnlockInputBuffer(void *hj_enc_handle, HJK_ENC_INPUT_PTR hjk_input_surface)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -623,19 +740,19 @@ static int hjk_EncEncodePicture(void *hj_enc_handle, HJK_ENC_PIC_PARAMS *hj_para
     HJK_ENC_REGISTER_RESOURCE *p_enc_reg_res = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
     if (NULL == hj_enc_handle || NULL == hj_params) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
     }
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     p_hjk_enc_info = p_hjk_enc_info;
     p_enc_reg_res = (HJK_ENC_REGISTER_RESOURCE *)hj_params->inputBuffer;
     if (NULL == p_enc_reg_res) {
         return HJK_ENC_SUCCESS;
     }
-    printf("%d %s in buf p_enc_reg_res->resourceToRegister=%p\n", __LINE__, __FUNCTION__, p_enc_reg_res->resourceToRegister);
+    hjk_debug(" in buf p_enc_reg_res->resourceToRegister=%p", p_enc_reg_res->resourceToRegister);
     p_hjk_enc_inter_out = (HjkEncoderInterOut *)hj_params->outputBitstream; 
-    printf("%d %s out buf hj_params->outputBitstream=%p\n", __LINE__, __FUNCTION__,
+    hjk_debug(" out buf hj_params->outputBitstream=%p",
            hj_params->outputBitstream);
 
 #if 1
@@ -698,7 +815,8 @@ static int hjk_EncLockBitstream(void *hj_enc_handle, HJK_ENC_LOCK_BITSTREAM *loc
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
+    get_hjdev_context();
 
     if (NULL == hj_enc_handle || NULL == lock_params) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -710,7 +828,7 @@ static int hjk_EncLockBitstream(void *hj_enc_handle, HJK_ENC_LOCK_BITSTREAM *loc
     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
     p_hjk_enc_info = p_hjk_enc_info;
     p_hjk_enc_inter_out = (HjkEncoderInterOut *)lock_params->outputBitstream;
-    printf("%d %s outputBitstream=%p  m_enc_out_virtual_addr=%p\n", __LINE__, __FUNCTION__, lock_params->outputBitstream, p_hjk_enc_inter_out->m_enc_out_virtual_addr);
+    hjk_debug(" outputBitstream=%p  m_enc_out_virtual_addr=%p", lock_params->outputBitstream, p_hjk_enc_inter_out->m_enc_out_virtual_addr);
     lock_params->bitstreamBufferPtr = p_hjk_enc_inter_out->m_enc_out_virtual_addr;
     lock_params->bitstreamSizeInBytes = p_hjk_enc_inter_out->m_enc_data_len;
     return HJK_ENC_SUCCESS;
@@ -720,7 +838,7 @@ static int hjk_EncUnlockBitstream(void *hj_enc_handle, HJK_ENC_OUTPUT_PTR hjk_ou
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == hjk_output_surface) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -738,10 +856,10 @@ static int hjk_EncUnmapInputResource(
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == mappedResource) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
     }
 
@@ -751,7 +869,7 @@ static int hjk_EncUnmapInputResource(
             mappedResource) {
             // find ok, map
             // todo
-            printf("%d %s unmap find ok\n", __LINE__, __FUNCTION__);
+            hjk_debug(" unmap find ok\n");
             break;
         }
     }
@@ -763,7 +881,7 @@ static int hjk_EncUnregisterResource(void *hj_enc_handle,
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
     int i = 0;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle || NULL == hjk_regptr) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -774,8 +892,7 @@ static int hjk_EncUnregisterResource(void *hj_enc_handle,
         if (p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource ==
             hjk_regptr) {
             // find ok, release i resource
-            printf("%d %s find ok, release i resource\n", __LINE__,
-                   __FUNCTION__);
+            hjk_debug(" find ok, release i resource\n");
             p_hjk_enc_info->m_list_enc_reg_res[i].registeredResource = NULL;
             break;
         }
@@ -786,7 +903,7 @@ static int hjk_EncUnregisterResource(void *hj_enc_handle,
 static int hjk_EncDestroyBitstreamBuffer(void *hj_enc_handle,
 									HJK_ENC_OUTPUT_PTR hjk_output_surface)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL != hjk_output_surface) {
         HjkEncoderInterOut *p_hjk_enc_inter_out = NULL;
@@ -806,10 +923,10 @@ static int hjk_EncDestroyBitstreamBuffer(void *hj_enc_handle,
 static int hjk_EncDestroyEncoder(void *hj_enc_handle)
 {
     HjkEncoderInfo *p_hjk_enc_info = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hj_enc_handle) {
-        printf("%d %s \n", __LINE__, __FUNCTION__);
+        hjk_debug(" \n");
         return HJK_ENC_ERR_INVALID_PTR;
     }
     p_hjk_enc_info = (HjkEncoderInfo *)hj_enc_handle;
@@ -822,14 +939,14 @@ static int hjk_EncDestroyEncoder(void *hj_enc_handle)
 static int hjk_EncDestroyInputBuffer(void *hj_enc_handle,
 								HJK_ENC_INPUT_PTR hjk_input_surface)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
 
 static int hjk_EncGetLastErrorString(void *hj_enc_handle)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     return HJK_ENC_SUCCESS;
 }
@@ -866,7 +983,7 @@ static HJK_ENCODE_API_FUNCTION_LIST hjk_encode_api_function_list_member = {
 /* HjkencFunctions start*/
 static int hjk_EncodeAPIGetMaxSupportedVersion(uint32_t *hjkenc_max_ver)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     if (NULL == hjkenc_max_ver) {
         return HJK_ENC_ERR_INVALID_PTR;
@@ -878,7 +995,7 @@ static int hjk_EncodeAPIGetMaxSupportedVersion(uint32_t *hjkenc_max_ver)
 
 static int hjk_EncodeAPICreateInstance(HJK_ENCODE_API_FUNCTION_LIST *hjkenc_funcs)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     memcpy(hjkenc_funcs, &hjk_encode_api_function_list_member,
            sizeof(hjk_encode_api_function_list_member));
@@ -894,7 +1011,7 @@ static HjkencFunctions hjk_enc_functions = {
 
 int hjkenc_load_functions(HjkencFunctions **hjkenc_dl, void *avctx)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
 
     *hjkenc_dl = &hjk_enc_functions;
 
@@ -904,7 +1021,7 @@ int hjkenc_load_functions(HjkencFunctions **hjkenc_dl, void *avctx)
 
 void hjkenc_free_functions(HjkencFunctions **hjkenc_dl)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hjkenc_dl) {
         return;
     }
@@ -915,7 +1032,7 @@ void hjkenc_free_functions(HjkencFunctions **hjkenc_dl)
 
 void hjk_free_functions(HjkFunctions **hjk_dl)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hjk_dl) {
         return;
     }
@@ -942,7 +1059,7 @@ typedef struct _HjkDecoderInfo {
 
 static int hj_vidGetDecoderCaps(HJVIDDECODECAPS *caps)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == caps) {
         return -1;
     }
@@ -961,7 +1078,7 @@ static int hj_vidCreateDecoder(HJvideodecoder *hj_video_decoder,
 						  HJVIDDECODECREATEINFO *hj_params)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_video_decoder || NULL == hj_params) {
         return -1;
     }
@@ -989,9 +1106,9 @@ static int hj_vidDecodePicture(HJvideodecoder hj_video_decoder,
     int i = 0;
     uint8_t *decode_data_output = NULL;
 
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_video_decoder || NULL == hj_pic_params) {
-        printf("%d %s hj_video_decoder=%p hj_pic_params=%p\n", __LINE__, __FUNCTION__,
+        hjk_debug(" hj_video_decoder=%p hj_pic_params=%p",
                hj_video_decoder, hj_pic_params);
         return -1;
     }
@@ -1026,7 +1143,7 @@ static int hj_vidMapVideoFrame(HJvideodecoder hj_video_decoder, unsigned int hj_
 						  HJVIDPROCPARAMS *vpp)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_video_decoder || NULL == hj_devptr|| NULL == vpp) {
         return -1;
     }
@@ -1040,7 +1157,7 @@ static int hj_vidMapVideoFrame(HJvideodecoder hj_video_decoder, unsigned int hj_
 
 static int hj_vidUnmapVideoFrame(HJvideodecoder hj_video_decoder, HJdeviceptr hj_devptr)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_video_decoder || NULL == hj_devptr) {
         return -1;
     }
@@ -1053,7 +1170,7 @@ static int hj_vidUnmapVideoFrame(HJvideodecoder hj_video_decoder, HJdeviceptr hj
 static int hj_vidDestroyDecoder(HJvideodecoder hj_video_decoder)
 {
     HjkDecoderInfo *p_hjk_decoder_info = NULL;
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_video_decoder) {
         return -1;
     }
@@ -1076,7 +1193,7 @@ static HjvidFunctions hj_vid_functions = {
 
 int hjvid_load_functions(HjvidFunctions **hj_vid_f, void *logctx)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_vid_f) {
         return -1;
     }
@@ -1088,7 +1205,7 @@ int hjvid_load_functions(HjvidFunctions **hj_vid_f, void *logctx)
 
 void hjvid_free_functions(HjvidFunctions **hj_vid_f)
 {
-    printf("%d %s \n", __LINE__, __FUNCTION__);
+    hjk_debug(" \n");
     if (NULL == hj_vid_f) {
         return;
     }

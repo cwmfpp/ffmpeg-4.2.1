@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#define _GNU_SOURCE      /* See feature_test_macros(7) */
+#include <sys/syscall.h> /* For SYS_xxx definitions */
+#include <unistd.h>
+
 #include "config.h"
 
 #include "hjkenc.h"
@@ -556,6 +560,7 @@ static av_cold int hjkenc_setup_device(AVCodecContext *avctx)
 
         if (hjk_device_hwctx) {
             ctx->hjk_context = hjk_device_hwctx->hjk_ctx;
+            hjk_debug("ctx->hjk_context=%p", ctx->hjk_context);
         }
 
 #if CONFIG_D3D11VA
