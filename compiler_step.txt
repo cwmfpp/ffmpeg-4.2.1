@@ -10,12 +10,17 @@ make install
 
 ffmpeg
 1. 编译ffmpeg
-./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags="-g -DMAC_OS"
+./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags="-g -DMAC_OS" --extra-ldflags=-g --disable-optimizations --disable-asm --disable-stripping --enable-doc
 2. 编译ffmpeg，支持x264
 ./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags=-g --extra-ldflags=-L/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/lib --extra-cflags=-I/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/include --enable-libx264
 或
 export PKG_CONFIG_PATH=/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/lib/pkgconfig:$PKG_CONFIG_PATH
 ./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags=-g --disable-optimizations --disable-asm --disable-stripping --enable-doc --enable-libx264
+支持freetype
+http://mirror.yongbok.net/nongnu/freetype/freetype-2.12.1.tar.gz
+export PKG_CONFIG_PATH=/home/chen/work/project/freetype-2.12.1/_install_freetype/lib/pkgconfig:$PKG_CONFIG_PATH
+./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --enable-libfreetype --extra-cflags="-g" --extra-ldflags=-g  --disable-optimizations --disable-asm --disable-stripping --enable-doc
+
 
 关闭hjkenc
 --disable-hjkenc

@@ -21,8 +21,9 @@ EXAMPLES-$(CONFIG_TRANSCODE_AAC_EXAMPLE)     += transcode_aac
 EXAMPLES-$(CONFIG_TRANSCODING_EXAMPLE)       += transcoding
 EXAMPLES-$(CONFIG_VAAPI_ENCODE_EXAMPLE)      += vaapi_encode
 EXAMPLES-$(CONFIG_VAAPI_TRANSCODE_EXAMPLE)   += vaapi_transcode
-EXAMPLES-$(CONFIG_MJPEG_HJKENC_ENCODER)      += hjkjpg_encode
-EXAMPLES-$(CONFIG_HW_DECODE_EXAMPLE)         += hjkjpg_hw_decode
+EXAMPLES-$(CONFIG_HJKJPU_ENCODE_EXAMPLE)     += hjkjpg_encode
+EXAMPLES-$(CONFIG_HJKJPG_HW_DECODE_EXAMPLE)  += hjkjpg_hw_decode
+EXAMPLES-$(CONFIG_HJK_FILTERING_VIDEO_EXAMPLE)   += hjk_filtering_video
 
 EXAMPLES       := $(EXAMPLES-yes:%=doc/examples/%$(PROGSSUF)$(EXESUF))
 EXAMPLES_G     := $(EXAMPLES-yes:%=doc/examples/%$(PROGSSUF)_g$(EXESUF))
