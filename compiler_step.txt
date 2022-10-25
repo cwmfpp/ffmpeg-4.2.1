@@ -1,3 +1,8 @@
+hjk codec library
+下载hjk代码
+https://github.com/cwmfpp/hjk-codec-library
+cd hjk-codec-library
+make clean && make && make install
 
 x264
 下载x264代码
@@ -9,7 +14,8 @@ make
 make install
 
 ffmpeg
-1. 编译ffmpeg
+1. 编译ffmpeg,支持hjk
+export PKG_CONFIG_PATH=/home/chen/work/project/ffmpeg/hjk-codec-library/install/lib/pkgconfig:$PKG_CONFIG_PATH
 ./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags="-g -DMAC_OS" --extra-ldflags=-g --disable-optimizations --disable-asm --disable-stripping --enable-doc
 2. 编译ffmpeg，支持x264
 ./configure --prefix=`pwd`/temp --enable-shared --enable-gpl --enable-debug --extra-cflags=-g --extra-ldflags=-L/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/lib --extra-cflags=-I/home/chen/work/project/ffmpeg/x264/x264-master/install_x264/include --enable-libx264

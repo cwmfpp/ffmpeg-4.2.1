@@ -327,6 +327,7 @@ External library support:
   --disable-d3d11va        disable Microsoft Direct3D 11 video acceleration code [autodetect]
   --disable-dxva2          disable Microsoft DirectX 9 video acceleration code [autodetect]
   --disable-ffnvcodec      disable dynamically linked Nvidia code [autodetect]
+  --disable-ffhjkcodec     disable dynamically linked Hjk code [autodetect]
   --enable-libdrm          enable DRM code (Linux) [no]
   --enable-libmfx          enable Intel MediaSDK (AKA Quick Sync Video) code via libmfx [no]
   --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
@@ -1837,8 +1838,10 @@ HWACCEL_AUTODETECT_LIBRARY_LIST="
     v4l2_m2m
     xvmc
     hjk
-    hjkenc
+    hjkvid
+    ffhjkcodec
     hjkdec
+    hjkenc
 "
 
 # catchall list of things that require external libs to link
@@ -2885,6 +2888,10 @@ vaapi_x11_deps="xlib"
 videotoolbox_hwaccel_deps="videotoolbox pthreads"
 videotoolbox_hwaccel_extralibs="-framework QuartzCore"
 xvmc_deps="X11_extensions_XvMClib_h"
+hjk_deps="ffhjkcodec"
+hjkvid_deps="ffhjkcodec"
+ffhjkcodec_deps_any="libdl LoadLibrary"
+hjkdec_deps="ffhjkcodec"
 
 h263_vaapi_hwaccel_deps="vaapi"
 h263_vaapi_hwaccel_select="h263_decoder"
@@ -3008,11 +3015,23 @@ scale_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
 thumbnail_cuda_filter_deps="ffnvcodec"
 thumbnail_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
 transpose_npp_filter_deps="ffnvcodec libnpp"
+hwupload_hjk_filter_deps="ffhjkcodec"
+scale_hjknpp_filter_deps="ffhjkcodec libhjknpp"
+scale_hjk_filter_deps="ffhjkcodec"
+scale_hjk_filter_deps_any="hjk_hjkcc hjk_llvm"
+thumbnail_hjk_filter_deps="ffhjkcodec"
+thumbnail_hjk_filter_deps_any="hjk_hjkcc hjk_llvm"
+transpose_npp_filter_deps="ffhjkcodec libhjknpp"
 
 amf_deps_any="libdl LoadLibrary"
 nvenc_deps="ffnvcodec"
 nvenc_deps_any="libdl LoadLibrary"
 nvenc_encoder_deps="nvenc"
+
+#amf_deps_any="libdl LoadLibrary"
+hjkenc_deps="ffhjkcodec"
+hjkenc_deps_any="libdl LoadLibrary"
+hjkenc_encoder_deps="hjkenc"
 
 h263_v4l2m2m_decoder_deps="v4l2_m2m h263_v4l2_m2m"
 h263_v4l2m2m_encoder_deps="v4l2_m2m h263_v4l2_m2m"
@@ -3568,6 +3587,8 @@ vpp_qsv_filter_deps="libmfx"
 vpp_qsv_filter_select="qsvvpp"
 yadif_cuda_filter_deps="ffnvcodec"
 yadif_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
+yadif_hjk_filter_deps="ffhjkcodec"
+yadif_hjk_filter_deps_any="hjk_hjkcc hjk_llvm"
 
 # examples
 avio_dir_cmd_deps="avformat avutil"
@@ -3610,7 +3631,7 @@ avformat_deps="avcodec avutil"
 avformat_suggest="libm network zlib"
 avresample_deps="avutil"
 avresample_suggest="libm"
-avutil_suggest="clock_gettime ffnvcodec libm libdrm libmfx opencl user32 vaapi videotoolbox corefoundation corevideo coremedia bcrypt"
+avutil_suggest="clock_gettime ffnvcodec ffhjkcodec libm libdrm libmfx opencl user32 vaapi videotoolbox corefoundation corevideo coremedia bcrypt"
 postproc_deps="avutil gpl"
 postproc_suggest="libm"
 swresample_deps="avutil"
@@ -6117,6 +6138,11 @@ if ! disabled ffnvcodec; then
       check_pkg_config ffnvcodec "ffnvcodec >= 8.0.14.9 ffnvcodec < 8.1" "$ffnv_hdr_list" ""
 fi
 
+if ! disabled ffhjkcodec; then
+    ffnv_hdr_list="ffhjkcodec/hjk_api.h"
+    check_pkg_config ffhjkcodec "ffhjkcodec >= 0.0.0.1" "$ffnv_hdr_list" ""
+fi
+
 check_cpp_condition winrt windows.h "!WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)"
 
 if ! disabled w32threads && ! enabled pthreads; then
@@ -6584,6 +6610,7 @@ if enabled x86; then
             ;;
         *)
             disable ffnvcodec cuvid nvdec nvenc
+            disable ffhjkcodec hjkvid hjkdec hjkenc
             ;;
     esac
 elif enabled ppc64 && ! enabled bigendian; then
@@ -6592,19 +6619,28 @@ elif enabled ppc64 && ! enabled bigendian; then
             ;;
         *)
             disable ffnvcodec cuvid nvdec nvenc
+            disable ffhjkcodec hjkvid hjkdec hjkenc
             ;;
     esac
 else
     disable ffnvcodec cuvid nvdec nvenc
+    disable ffhjkcodec hjkvid hjkdec hjkenc
 fi
 
 enabled ffnvcodec && enable cuda
+enabled ffhjkcodec && enable hjk
 
 enabled nvenc &&
     test_cc -I$source_path <<EOF || disable nvenc
 #include <ffnvcodec/nvEncodeAPI.h>
 NV_ENCODE_API_FUNCTION_LIST flist;
 void f(void) { struct { const GUID guid; } s[] = { { NV_ENC_PRESET_HQ_GUID } }; }
+int main(void) { return 0; }
+EOF
+
+enabled hjkenc &&
+    test_cc -I$source_path <<EOF || disable hjkenc
+#include <ffhjkcodec/hjk_api.h>
 int main(void) { return 0; }
 EOF
 
@@ -6929,6 +6965,7 @@ check_deps $CONFIG_LIST       \
 
 enabled threads && ! enabled pthreads && ! enabled atomics_native && die "non pthread threading without atomics not supported, try adding --enable-pthreads or --cpu=i486 or higher if you are on x86"
 enabled avresample && warn "Building with deprecated library libavresample"
+echo $LINENO:"ffhjkcodec="$ffhjkcodec "hjkdec="$hjkdec "hjkenc="$hjkenc "hjk="$hjk
 
 case $target_os in
 haiku)
